@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block titulo %}RAPPIDOS{% endblock %} · Sistema de pedidos</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/estilos.css') }}">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📦</text></svg>">
+</head>
+<body>
+
+<a href="#contenido-principal" class="pantalla-lector">Saltar al contenido</a>
+
+<div id="cargando" class="activo"></div>
+<div id="notificaciones" aria-live="polite" aria-atomic="false"></div>
+
+<div class="estructura">
+
+  <aside class="lateral">
+    <div class="marca">
+      <div class="marca__icono">📦</div>
+      <div>
+        <div class="marca__nombre">RAPPIDOS</div>
+        <div class="marca__pie">Sistema de pedidos</div>
+      </div>
+    </div>
+
+    <nav class="nav" aria-label="Navegación principal">
+      <div class="nav__seccion">Operación</div>
+
+      <a href="{{ url_for('pagina_inicio') }}"
+         class="nav__enlace {{ 'activo' if activo == 'inicio' }}">
+        <span class="nav__icono">◎</span> Panel
+      </a>
+
+      <a href="{{ url_for('pagina_pedidos') }}"
+         class="nav__enlace {{ 'activo' if activo == 'pedidos' }}">
+        <span class="nav__icono">≡</span> Pedidos
+      </a>
+
+      <a href="{{ url_for('pagina_carga') }}"
+         class="nav__enlace {{ 'activo' if activo == 'carga' }}">
+        <span class="nav__icono">⇪</span> Carga masiva
+      </a>
+
+      <a href="{{ url_for('pagina_salidas') }}"
+         class="nav__enlace {{ 'activo' if activo == 'salidas' }}">
+        <span class="nav__icono">➤</span> Preparar salida
+      </a>
+
+      <div class="nav__seccion">Analisis</div>
+
+      <a href="{{ url_for('pagina_estadisticas') }}"
+         class="nav__enlace {{ 'activo' if activo == 'estadisticas' }}">
+        <span class="nav__icono">◱</span> Estadisticas
+      </a>
+    </nav>
+
+    <div class="lateral__pie">
+      <div class="lateral__fila">
+        <span class="lateral__clave">Pendientes</span>
+        <span class="lateral__valor" id="lateral-pendientes">—</span>
+      </div>
+      <div class="lateral__fila">
+        <span class="lateral__clave">Peso total</span>
+        <span class="lateral__valor" id="lateral-peso">—</span>
+      </div>
+      <div class="lateral__fila">
+        <span class="lateral__clave">Capacidad</span>
+        <span class="lateral__valor">{{ capacidad | round(0) | int }} kg</span>
+      </div>
+    </div>
+  </aside>
+
+  <main class="contenido" id="contenido-principal">
+    <header class="encabezado">
+      <div class="encabezado__titulo">
+        <h1>{% block encabezado %}Panel{% endblock %}</h1>
+        <p>{% block descripcion %}{% endblock %}</p>
+      </div>
+      <div class="encabezado__acciones boton-grupo">
+        {% block acciones %}{% endblock %}
+      </div>
+    </header>
+
+    {% block contenido %}{% endblock %}
+  </main>
+
+</div>
+
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

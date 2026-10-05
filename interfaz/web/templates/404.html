@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Página no encontrada · RAPPIDOS</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/estilos.css') }}">
+</head>
+<body>
+  <div class="pagina-404">
+    <div>
+      <div class="pagina-404__codigo">404</div>
+      <h1 class="mt-2">No encontramos esa página</h1>
+      <p class="mt-1 mb-2">
+        La dirección que buscas no existe o cambió de lugar.
+      </p>
+      <a href="{{ url_for('pagina_inicio') }}" class="boton boton--primario">
+        ← Volver al panel
+      </a>
+    </div>
+  </div>
+</body>
+</html>

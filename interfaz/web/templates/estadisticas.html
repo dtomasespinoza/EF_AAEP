@@ -1,0 +1,426 @@
+{% extends "base.html" %}
+{% set activo = 'estadisticas' %}
+
+{% block titulo %}Estadísticas{% endblock %}
+{% block encabezado %}Estadísticas{% endblock %}
+{% block descripcion %}
+  Métricas del sistema, distribución de carga y rendimiento de los algoritmos.
+{% endblock %}
+
+{% block acciones %}
+  <button class="boton boton--fantasma boton--pequeno" id="btn-refrescar">↻ Actualizar</button>
+  <button class="boton boton--peligro boton--pequeno" id="btn-reiniciar">Reiniciar todo</button>
+{% endblock %}
+
+{% block contenido %}
+
+<div class="rejilla rejilla-4 mb-2">
+  <div class="indicador indicador--primario">
+    <div class="indicador__etiqueta">📦 Total de pedidos</div>
+    <div class="indicador__valor" id="e-total">—</div>
+    <div class="indicador__nota" id="e-total-nota">—</div>
+  </div>
+
+  <div class="indicador indicador--exito">
+    <div class="indicador__etiqueta">🚚 Viajes necesarios</div>
+    <div class="indicador__valor" id="e-viajes">—</div>
+    <div class="indicador__nota" id="e-viajes-nota">—</div>
+  </div>
+
+  <div class="indicador indicador--informacion">
+    <div class="indicador__etiqueta">⚖️ Peso promedio</div>
+    <div class="indicador__valor" id="e-promedio">—</div>
+    <div class="indicador__nota" id="e-rango">—</div>
+  </div>
+
+  <div class="indicador indicador--alerta">
+    <div class="indicador__etiqueta">✅ Entregados</div>
+    <div class="indicador__valor" id="e-entregados">—</div>
+    <div class="indicador__nota" id="e-entregados-nota">—</div>
+  </div>
+</div>
+
+<div class="rejilla rejilla-2 mb-2">
+
+  <div class="tarjeta">
+    <div class="tarjeta__titulo">
+      <h3>📊 Distribución de pesos</h3>
+      <span class="insignia insignia--primaria" id="e-muestra">0</span>
+    </div>
+
+    <div class="columnas" id="histograma" style="height:230px"></div>
+    <div class="ejes">
+      <span id="h-min">—</span>
+      <span>Peso de los pedidos pendientes</span>
+      <span id="h-max">—</span>
+    </div>
+
+    <div class="tarjeta__pie">
+      Los pedidos concentrados en los rangos altos obligan a mas viajes:
+      tres pedidos de 15 kg no caben juntos en un vehiculo de 30 kg.
+    </div>
+  </div>
+
+  <div class="tarjeta">
+    <div class="tarjeta__titulo">
+      <h3>🗺️ Pedidos por zona</h3>
+    </div>
+    <div id="zonas"></div>
+    <div class="tarjeta__pie">
+      Zonas extraidas del barrio de cada direccion. Sirve para planear rutas
+      y ver si la carga se concentra en un sector.
+    </div>
+  </div>
+
+</div>
+
+<div class="tarjeta mb-2">
+  <div class="tarjeta__titulo">
+    <h3>📈 Rendimiento de los algoritmos de ordenamiento</h3>
+    <button class="boton boton--pequeno" id="btn-medir">Ejecutar mediciones</button>
+  </div>
+
+  <div class="rejilla rejilla-3 mb-2" style="gap:13px">
+    <div class="aviso aviso--informacion">
+      <span class="aviso__icono">◷</span>
+      <p>Burbuja, insercion y QuickSort son de la unidad didactica. Conteo y
+      cubetas aprovechan que el peso tiene un rango acotado de 0 a 30 kg.</p>
+    </div>
+    <div class="aviso aviso--exito">
+      <span class="aviso__icono">⚡</span>
+      <p>La burbuja es O(n²): al duplicar los pedidos, las comparaciones se
+      cuadruplican. QuickSort es O(n log n), casi lineal.</p>
+    </div>
+    <div class="aviso aviso--alerta">
+      <span class="aviso__icono">⚖</span>
+      <p>El conteo es O(n + k), con k el rango de valores. En este dominio
+      k son 3000 centesimas: constante y pequena.</p>
+    </div>
+  </div>
+
+  <div id="barras-algoritmos"></div>
+  <div id="detalle-algoritmos" class="mt-2"></div>
+</div>
+
+<div class="tarjeta">
+  <div class="tarjeta__titulo">
+    <h3>🚚 Últimas salidas</h3>
+  </div>
+  <div class="tabla-caja">
+    <div class="tabla-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Fecha</th>
+            <th>Estrategia</th>
+            <th class="numero">Pedidos</th>
+            <th class="numero">Peso</th>
+            <th class="numero">Ocupación</th>
+          </tr>
+        </thead>
+        <tbody id="cuerpo-salidas"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="tarjeta mt-2">
+  <div class="tarjeta__titulo">
+    <h3>🗃️ Almacenamiento</h3>
+  </div>
+  <div id="almacen" class="rejilla rejilla-4" style="gap:13px"></div>
+  <div class="tarjeta__pie">
+    Los datos se guardan en un archivo JSON con escritura atómica: primero se
+    escribe un temporal y luego se renombra, para que una interrupción nunca
+    deje el archivo a medias.
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+const CAPACIDAD = {{ capacidad }};
+
+function pintarResumen(resumen) {
+  $("#e-total").textContent = entero(resumen.total_pedidos);
+  $("#e-total-nota").textContent = `${entero(resumen.pendientes)} pendientes`;
+
+  $("#e-viajes").textContent = entero(resumen.viajes_necesarios);
+  $("#e-viajes-nota").textContent = resumen.viajes_necesarios > 0
+    ? `Teórico: ${resumen.ocupacion_teorica}% de ocupación`
+    : "Nada que despachar";
+
+  $("#e-promedio").textContent = peso(resumen.peso_promedio);
+  $("#e-rango").textContent = resumen.pendientes > 0
+    ? `${peso(resumen.peso_minimo)} — ${peso(resumen.peso_maximo)}`
+    : "Sin datos";
+
+  $("#e-entregados").textContent = entero(resumen.despachados);
+  $("#e-entregados-nota").textContent = `${peso(resumen.peso_despachados)} entregados`;
+}
+
+function pintarHistograma(bloques) {
+  const contenedor = vaciar($("#histograma"));
+
+  if (!bloques || bloques.length === 0) {
+    contenedor.appendChild(elemento("p", {
+      clase: "tenue pequeno centro crece",
+      texto: "No hay pedidos pendientes que graficar.",
+      estilo: "display:flex;align-items:center;justify-content:center;",
+    }));
+    $("#h-min").textContent = "—";
+    $("#h-max").textContent = "—";
+    $("#e-muestra").textContent = "0";
+    return;
+  }
+
+  const maximo = Math.max(...bloques.map((b) => b.cantidad), 1);
+  const total = bloques.reduce((suma, b) => suma + b.cantidad, 0);
+  $("#e-muestra").textContent = entero(total);
+
+  for (const bloque of bloques) {
+    const columna = elemento("div", { clase: "columna" });
+    const altura = Math.max((bloque.cantidad / maximo) * 100, bloque.cantidad > 0 ? 4 : 1);
+
+    columna.append(
+      elemento("div", { clase: "columna__valor", texto: String(bloque.cantidad) }),
+      elemento("div", {
+        clase: "columna__barra",
+        estilo: `height:${altura}%`,
+        titulo: `${bloque.cantidad} pedido(s) · ${bloque.rango}`,
+      }),
+      elemento("div", { clase: "columna__etiqueta", texto: bloque.etiqueta })
+    );
+
+    contenedor.appendChild(columna);
+  }
+
+  $("#h-min").textContent = `${bloques[0].etiqueta} kg`;
+  $("#h-max").textContent = `${bloques[bloques.length - 1].etiqueta} kg`;
+}
+
+function pintarZonas(zonas) {
+  const contenedor = vaciar($("#zonas"));
+
+  if (!zonas || zonas.length === 0) {
+    mostrarVacio(contenedor, "🗺️", "Sin zonas", "Registra pedidos con direccion para ver el reparto geografico.");
+    return;
+  }
+
+  const maximo = Math.max(...zonas.map((z) => z.cantidad), 1);
+
+  for (const zona of zonas) {
+    const fila = elemento("div", { clase: "barra-fila" });
+    const pista = elemento("div", { clase: "barra-fila__pista" });
+    const relleno = elemento("div", {
+      estilo: `width:${Math.max((zona.cantidad / maximo) * 100, 5)}%`,
+    });
+    relleno.textContent = "";
+    pista.appendChild(relleno);
+
+    fila.append(
+      elemento("div", { clase: "barra-fila__nombre", texto: zona.zona }),
+      pista,
+      elemento("div", { clase: "barra-fila__valor", texto: entero(zona.cantidad) })
+    );
+
+    contenedor.appendChild(fila);
+  }
+}
+
+function pintarSalidas(salidas) {
+  const cuerpo = $("#cuerpo-salidas");
+
+  if (!salidas || salidas.length === 0) {
+    mostrarVacio(cuerpo, "🚚", "Sin salidas", "Los viajes confirmados apareceran aqui.");
+    return;
+  }
+
+  for (const salida of salidas) {
+    const fila = elemento("tr");
+    fila.append(
+      elemento("td", { clase: "mono", texto: `#${salida.id}` }),
+      elemento("td", { texto: salida.fecha }),
+      elemento("td", { texto: salida.estrategia }),
+      elemento("td", { clase: "numero", texto: entero(salida.cantidad) }),
+      elemento("td", { clase: "numero", texto: peso(salida.peso_total) }),
+      elemento("td", { clase: "numero", texto: `${salida.ocupacion}%` })
+    );
+    cuerpo.appendChild(fila);
+  }
+}
+
+function pintarAlmacen(almacen) {
+  const contenedor = vaciar($("#almacen"));
+
+  const campos = [
+    ["Pedidos guardados", entero(almacen.total)],
+    ["Pendientes", entero(almacen.pendientes)],
+    ["Despachados", entero(almacen.despachados)],
+    ["Salidas registradas", entero(almacen.salidas)],
+  ];
+
+  for (const [etiqueta, valor] of campos) {
+    const mini = elemento("div", { clase: "tarjeta tarjeta--plana" });
+    mini.style.padding = "14px";
+    mini.append(
+      elemento("div", { clase: "diminuto tenue", texto: etiqueta }),
+      elemento("div", { clase: "mono negrita", texto: valor, estilo: "font-size:1.4rem;" })
+    );
+    contenedor.appendChild(mini);
+  }
+
+  contenedor.appendChild(elemento("div", {
+    clase: "diminuto tenue",
+    estilo: "grid-column:1/-1;",
+    texto: `Archivo: ${almacen.ruta} · próximo código: P${String(almacen.contador).padStart(3, "0")}`,
+  }));
+}
+
+function pintarAlgoritmos(metricas) {
+  const contenedor = vaciar($("#barras-algoritmos"));
+
+  if (!metricas || metricas.length === 0) {
+    mostrarVacio(contenedor, "📊", "Sin datos", "Registra pedidos pendientes y vuelve a medir.");
+    return;
+  }
+
+  const maxComparaciones = Math.max(...metricas.map((m) => m.comparaciones), 1);
+  const minComparaciones = Math.min(...metricas.map((m) => m.comparaciones), 1);
+
+  metricas.forEach((metrica) => {
+    const proporcion = (metrica.comparaciones / maxComparaciones) * 100;
+    const esOptimo = metrica.comparaciones === minComparaciones;
+
+    const fila = elemento("div", { clase: "barra-fila" });
+
+    const pista = elemento("div", { clase: "barra-fila__pista" });
+    const relleno = elemento("div", {
+      clase: `barra-fila__relleno ${esOptimo ? "rapido" : proporcion > 60 ? "lento" : ""}`,
+      estilo: `width:${Math.max(proporcion, 7)}%`,
+      titulo: `${entero(metrica.comparaciones)} comparaciones · ${entero(metrica.intercambios)} intercambios · ${metrica.pasos_por_elemento} pasos/elemento`,
+    });
+    relleno.textContent = entero(metrica.comparaciones);
+    pista.appendChild(relleno);
+
+    const nombre = elemento("div", { clase: "barra-fila__nombre", texto: metrica.nombre });
+    if (esOptimo) {
+      nombre.appendChild(elemento("span", {
+        clase: "insignia insignia--exito",
+        texto: "menos pasos",
+        estilo: "margin-left:7px;",
+      }));
+    }
+
+    fila.append(
+      nombre,
+      pista,
+      elemento("div", { clase: "barra-fila__valor", texto: duracion(metrica.milisegundos) })
+    );
+
+    contenedor.appendChild(fila);
+  });
+}
+
+function pintarDetalleAlgoritmos(datos) {
+  const tabla = elemento("table");
+
+  const cabeza = elemento("thead");
+  const filaCabeza = elemento("tr");
+  for (const titulo of ["Algoritmo", "Comparaciones", "Intercambios", "Pasos/elemento", "Tiempo"]) {
+    filaCabeza.appendChild(elemento("th", {
+      texto: titulo,
+      estilo: titulo === "Comparaciones" || titulo === "Intercambios" || titulo === "Tiempo" ? "text-align:right" : "",
+    }));
+  }
+  cabeza.appendChild(filaCabeza);
+  tabla.appendChild(cabeza);
+
+  const cuerpo = elemento("tbody");
+  for (const metrica of datos.metricas) {
+    const fila = elemento("tr");
+    fila.append(
+      elemento("td", { texto: metrica.nombre }),
+      elemento("td", { clase: "numero", texto: entero(metrica.comparaciones) }),
+      elemento("td", { clase: "numero", texto: entero(metrica.intercambios) }),
+      elemento("td", { clase: "numero", texto: metrica.pasos_por_elemento }),
+      elemento("td", { clase: "numero", texto: duracion(metrica.milisegundos) })
+    );
+    cuerpo.appendChild(fila);
+  }
+  tabla.appendChild(cuerpo);
+
+  const caja = elemento("div", { clase: "tabla-caja mt-3" });
+  const scroll = elemento("div", { clase: "tabla-scroll" });
+  scroll.appendChild(tabla);
+  caja.appendChild(scroll);
+
+  vaciar($("#detalle-algoritmos")).append(
+    caja,
+    elemento("p", {
+      clase: "diminuto tenue mt-2",
+      texto: `Medido sobre ${entero(datos.metricas[0].elementos)} pedidos. La columna "pasos/elemento" divide (comparaciones + intercambios) entre la cantidad de elementos: es la que revela el crecimiento asintotico mejor que el tiempo, porque no depende de la velocidad de la maquina.`,
+    })
+  );
+}
+
+async function cargar() {
+  try {
+    const datos = await Api.estadisticas();
+
+    pintarResumen(datos.resumen);
+    pintarHistograma(datos.histograma);
+    pintarZonas(datos.distribucion_zonas);
+    pintarSalidas(datos.salidas);
+    pintarAlmacen(datos.almacen);
+    refrescarLateral();
+  } catch (error) {
+    avisar(error.message, "error");
+  }
+}
+
+async function medir() {
+  const boton = $("#btn-medir");
+  boton.disabled = true;
+  boton.textContent = "Midiendo…";
+
+  try {
+    const datos = await Api.medirAlgoritmos("QUICKSORT");
+    pintarAlgoritmos(datos.metricas);
+    pintarDetalleAlgoritmos(datos);
+  } catch (error) {
+    avisar(error.message, "error");
+  } finally {
+    boton.disabled = false;
+    boton.textContent = "Ejecutar mediciones";
+  }
+}
+
+$("#btn-refrescar").addEventListener("click", cargar);
+$("#btn-medir").addEventListener("click", medir);
+
+$("#btn-reiniciar").addEventListener("click", async () => {
+  if (!confirmarAccion(
+    "Esto eliminara TODOS los pedidos y el historial de salidas. No se puede deshacer.\n\n¿Continuar?"
+  )) {
+    return;
+  }
+
+  try {
+    const resultado = await Api.limpiar("todo");
+    avisar(resultado.mensaje, "exito");
+    await cargar();
+    refrescarLateral();
+  } catch (error) {
+    avisar(error.message, "error");
+  }
+});
+
+(async function iniciar() {
+  await cargar();
+  await medir();
+})();
+</script>
+{% endblock %}

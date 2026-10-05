@@ -1,0 +1,318 @@
+{% extends "base.html" %}
+{% set activo = 'inicio' %}
+
+{% block titulo %}Panel{% endblock %}
+{% block encabezado %}Panel de control{% endblock %}
+{% block descripcion %}
+  Estado del sistema y acceso rapido a las operaciones del dia.
+{% endblock %}
+
+{% block contenido %}
+
+<div class="rejilla rejilla-4 mb-2">
+  <div class="indicador indicador--primario">
+    <div class="indicador__etiqueta">📦 Pedidos pendientes</div>
+    <div class="indicador__valor" id="m-pendientes">—</div>
+    <div class="indicador__nota" id="m-pendientes-nota">Cargando…</div>
+  </div>
+
+  <div class="indicador indicador--informacion">
+    <div class="indicador__etiqueta">⚖️ Peso por despachar</div>
+    <div class="indicador__valor" id="m-peso">—</div>
+    <div class="indicador__nota" id="m-viajes-nota">—</div>
+  </div>
+
+  <div class="indicador indicador--exito">
+    <div class="indicador__etiqueta">🚚 Salidas realizadas</div>
+    <div class="indicador__valor" id="m-salidas">—</div>
+    <div class="indicador__nota" id="m-salidas-nota">—</div>
+  </div>
+
+  <div class="indicador indicador--alerta">
+    <div class="indicador__etiqueta">📊 Peso promedio</div>
+    <div class="indicador__valor" id="m-promedio">—</div>
+    <div class="indicador__nota" id="m-rango">—</div>
+  </div>
+</div>
+
+<div class="rejilla rejilla-2 mb-2">
+
+  <div class="tarjeta">
+    <div class="tarjeta__titulo">
+      <h3>➕ Registrar pedido</h3>
+    </div>
+
+    <form id="form-registro" class="rejilla" style="gap:14px">
+      <div class="campo">
+        <label class="campo__etiqueta" for="peso">Peso del pedido (kg)</label>
+        <div class="sufijo">
+          <input type="number" id="peso" name="peso" step="0.01" min="0.1" max="{{ capacidad }}"
+                 placeholder="0.00" required autocomplete="off">
+          <span class="sufijo__texto">kg</span>
+        </div>
+        <span class="campo__pista">Debe estar entre 0.1 y {{ capacidad }} kg.</span>
+      </div>
+
+      <div class="campo">
+        <label class="campo__etiqueta" for="direccion">Direccion de entrega</label>
+        <input type="text" id="direccion" name="direccion" placeholder="Calle 10 #3-22, La Castilla">
+      </div>
+
+      <div class="campo-linea">
+        <div class="campo">
+          <label class="campo__etiqueta" for="cliente">Cliente</label>
+          <input type="text" id="cliente" name="cliente" placeholder="Ana García">
+        </div>
+        <div class="campo">
+          <label class="campo__etiqueta" for="telefono">Telefono</label>
+          <input type="tel" id="telefono" name="telefono" placeholder="3001234567">
+        </div>
+      </div>
+
+      <button type="submit" class="boton boton--primario boton--bloque" id="btn-registrar">
+        Registrar pedido
+      </button>
+    </form>
+
+    <div class="tarjeta__pie">
+      Sin pedidos a mano? Usa
+      <a href="{{ url_for('pagina_carga') }}">la carga masiva</a> para generar
+      pedidos aleatorios o subir un archivo.
+    </div>
+  </div>
+
+  <div class="tarjeta">
+    <div class="tarjeta__titulo">
+      <h3>📈 Proximos pedidos</h3>
+      <a href="{{ url_for('pagina_pedidos') }}" class="boton boton--fantasma boton--pequeno">
+        Ver todos
+      </a>
+    </div>
+
+    <div class="plan-lista" id="lista-proximos"></div>
+  </div>
+
+</div>
+
+<div class="rejilla rejilla-2">
+
+  <div class="tarjeta">
+    <div class="tarjeta__titulo">
+      <h3>📊 Distribucion de pesos</h3>
+    </div>
+    <div class="columnas" id="histograma"></div>
+    <div class="ejes">
+      <span id="histograma-min">—</span>
+      <span>Peso de los pedidos pendientes</span>
+      <span id="histograma-max">—</span>
+    </div>
+  </div>
+
+  <div class="tarjeta">
+    <div class="tarjeta__titulo">
+      <h3>🕘 Ultimas salidas</h3>
+      <a href="{{ url_for('pagina_salidas') }}" class="boton boton--fantasma boton--pequeno">
+        Preparar salida
+      </a>
+    </div>
+    <div id="ultimas-salidas"></div>
+  </div>
+
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+const CAPACIDAD = {{ capacidad }};
+
+/** Pinta los cuatro indicadores de la parte superior. */
+function pintarIndicadores(resumen, totalSalidas) {
+  $("#m-pendientes").textContent = entero(resumen.pendientes);
+  $("#m-pendientes-nota").textContent = resumen.total_pedidos === resumen.pendientes
+    ? "Sin pedidos despachados aun"
+    : `${entero(resumen.despachados)} ya despachados`;
+
+  $("#m-peso").textContent = peso(resumen.peso_pendientes);
+  $("#m-viajes-nota").textContent = resumen.viajes_necesarios > 0
+    ? `Requieren ${entero(resumen.viajes_necesarios)} viajes`
+    : "Nada por despachar";
+
+  $("#m-salidas").textContent = entero(totalSalidas);
+  $("#m-salidas-nota").textContent = totalSalidas > 0
+    ? `${entero(resumen.peso_despachados)} kg entregados`
+    : "Aun no has preparado salidas";
+
+  $("#m-promedio").textContent = peso(resumen.peso_promedio);
+  $("#m-rango").textContent = resumen.pendientes > 0
+    ? `Entre ${peso(resumen.peso_minimo)} y ${peso(resumen.peso_maximo)}`
+    : "Sin datos";
+}
+
+/** Dibuja el histograma de pesos como columnas proporcionales. */
+function pintarHistograma(bloques) {
+  const contenedor = vaciar($("#histograma"));
+
+  if (!bloques || bloques.length === 0) {
+    contenedor.appendChild(elemento("p", {
+      clase: "tenue pequeno centro crece",
+      texto: "Registra pedidos para ver la distribucion.",
+      estilo: "display:flex;align-items:center;justify-content:center;",
+    }));
+    $("#histograma-min").textContent = "—";
+    $("#histograma-max").textContent = "—";
+    return;
+  }
+
+  const maximo = Math.max(...bloques.map((b) => b.cantidad), 1);
+
+  for (const bloque of bloques) {
+    const columna = elemento("div", { clase: "columna" });
+
+    // La altura es relativa al bloque mas poblado, para que la columna mas
+    // alta ocupe siempre el 100% del espacio disponible.
+    const altura = Math.max((bloque.cantidad / maximo) * 100, bloque.cantidad > 0 ? 4 : 1);
+
+    columna.append(
+      elemento("div", { clase: "columna__valor", texto: String(bloque.cantidad) }),
+      elemento("div", {
+        clase: "columna__barra",
+        estilo: `height:${altura}%`,
+        titulo: `${bloque.cantidad} pedido(s) en ${bloque.rango}`,
+      }),
+      elemento("div", { clase: "columna__etiqueta", texto: bloque.etiqueta })
+    );
+
+    contenedor.appendChild(columna);
+  }
+
+  $("#histograma-min").textContent = `${bloques[0].etiqueta} kg`;
+  $("#histograma-max").textContent = `${bloques[bloques.length - 1].etiqueta} kg`;
+}
+
+/** Lista los ultimos pedidos dados de alta, del mas reciente al mas antiguo. */
+function pintarProximos(pedidos) {
+  const contenedor = vaciar($("#lista-proximos"));
+
+  if (pedidos.length === 0) {
+    mostrarVacio(
+      contenedor,
+      "📭",
+      "Sin pedidos pendientes",
+      "Registra un pedido o genera varios desde la carga masiva."
+    );
+    return;
+  }
+
+  // Se ordena por codigo descendente: el codigo es correlativo, asi que el
+  // mayor es el mas reciente.
+  const recientes = [...pedidos]
+    .sort((a, b) => b.codigo.localeCompare(a.codigo))
+    .slice(0, 7);
+
+  for (const pedido of recientes) {
+    const fila = elemento("div", { clase: "plan-item" });
+
+    const izquierda = elemento("div", {
+      estilo: "display:flex;align-items:center;gap:10px;min-width:0;",
+    });
+
+    izquierda.append(
+      elemento("span", { clase: "codigo", texto: pedido.codigo }),
+      elemento("div", {
+        clase: "plan-item__direccion",
+        texto: pedido.direccion || "Sin direccion",
+      })
+    );
+
+    fila.append(
+      izquierda,
+      elemento("div", { clase: "plan-item__peso", texto: peso(pedido.peso) })
+    );
+
+    contenedor.appendChild(fila);
+  }
+}
+
+/** Muestra las salidas ya confirmadas. */
+function pintarSalidas(salidas) {
+  const contenedor = vaciar($("#ultimas-salidas"));
+
+  if (salidas.length === 0) {
+    mostrarVacio(
+      contenedor,
+      "🚚",
+      "Ningun viaje realizado",
+      "Cuando confirmes una salida, quedara registrada aqui."
+    );
+    return;
+  }
+
+  for (const salida of salidas.slice(0, 6)) {
+    const fila = elemento("div", { clase: "plan-item" });
+
+    const info = elemento("div", { clase: "plan-item__info" });
+    info.append(elemento("div", { clase: "plan-item__direccion", texto: `Salida #${salida.id} · ${salida.estrategia}` }));
+    info.append(elemento("div", { clase: "diminuto tenue", texto: salida.fecha }));
+
+    fila.append(
+      info,
+      elemento("div", {
+        clase: "plan-item__peso",
+        texto: `${salida.cantidad} ped.`,
+        titulo: peso(salida.peso_total),
+      })
+    );
+
+    contenedor.appendChild(fila);
+  }
+}
+
+async function cargar() {
+  try {
+    const [estadisticas, historial, pedidos] = await Promise.all([
+      Api.estadisticas(),
+      Api.historial(),
+      Api.listar({ solo_pendientes: 1, orden: "QUICKSORT", descendente: 1 }),
+    ]);
+
+    pintarIndicadores(estadisticas.resumen, historial.salidas.length);
+    pintarHistograma(estadisticas.histograma);
+    pintarProximos(pedidos.pedidos);
+    pintarSalidas(historial.salidas);
+    refrescarLateral();
+  } catch (error) {
+    avisar(error.message, "error");
+  }
+}
+
+$("#form-registro").addEventListener("submit", async (evento) => {
+  evento.preventDefault();
+
+  const boton = $("#btn-registrar");
+  boton.disabled = true;
+  boton.textContent = "Registrando…";
+
+  try {
+    const resultado = await Api.registrar({
+      peso: $("#peso").value,
+      direccion: $("#direccion").value,
+      cliente: $("#cliente").value,
+      telefono: $("#telefono").value,
+    });
+
+    avisar(`Pedido ${resultado.pedido.codigo} registrado (${peso(resultado.pedido.peso)}).`, "exito");
+    $("#form-registro").reset();
+    $("#peso").focus();
+    await cargar();
+  } catch (error) {
+    avisar(error.message, "error");
+  } finally {
+    boton.disabled = false;
+    boton.textContent = "Registrar pedido";
+  }
+});
+
+cargar();
+</script>
+{% endblock %}

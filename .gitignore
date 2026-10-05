@@ -1,0 +1,19 @@
+# Entornos virtuales
+.venv/
+venv/
+env/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+
+# Datos locales: cada instalacion genera los suyos y no deben subirse
+datos/
+*.json.tmp
+
+# Hosting, secretos y registros
+.vercel/
+.env
+*.log

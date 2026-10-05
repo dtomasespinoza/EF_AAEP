@@ -68,7 +68,7 @@ salida, el historial, el borrado y el manejo de errores.
 ## 4. Estructura del proyecto
 
 ```
-ProyectoFinal/
+EF_AAEP/
 ├── app.py                  Servidor Flask: paginas + API JSON
 ├── wsgi.py                 Punto de entrada WSGI para produccion
 ├── main.py                 Consola con menus
@@ -281,12 +281,21 @@ y por lo tanto no obliga a tocar una sola línea del sistema.
 
 ### GitHub
 
+El repositorio está publicado en
+**https://github.com/dtomasespinoza/EF_AAEP**
+
+Para volver a subir una versión nueva:
+
 ```bash
-git init
 git add .
-git commit -m "RAPPIDOS: sistema de pedidos con nucleo comun"
-git remote add origin https://github.com/<TU_USUARIO>/ProyectoFinal.git
-git push -u origin main
+git commit -m "descripcion del cambio"
+git push
+```
+
+Y para trabajar desde una copia nueva:
+
+```bash
+git clone https://github.com/dtomasespinoza/EF_AAEP.git
 ```
 
 `.gitignore` excluye `datos/`, los entornos virtuales y `__pycache__`, así que
@@ -299,8 +308,8 @@ la base de datos de cada máquina no se versiona.
 2. Abrir la **consola Bash** y clonar el repositorio:
 
    ```bash
-   git clone https://github.com/<TU_USUARIO>/ProyectoFinal.git
-   cd ProyectoFinal
+   git clone https://github.com/dtomasespinoza/EF_AAEP.git
+   cd EF_AAEP
    python3 -m venv .venv
    .venv/bin/pip install -r requirements.txt
    ```
@@ -309,7 +318,7 @@ la base de datos de cada máquina no se versiona.
    ruta del código fuente poner:
 
    ```
-   /home/<TU_USUARIO>/ProyectoFinal/wsgi.py
+   /home/<TU_USUARIO>/EF_AAEP/wsgi.py
    ```
 
 4. Pulsar **Reload**. Queda publicada en
@@ -328,7 +337,7 @@ hiciera falta más, el plan Developer cuesta 10 USD/mes.
 ### Actualizar tras un `git push`
 
 ```bash
-cd ~/ProyectoFinal
+cd ~/EF_AAEP
 git pull
 ```
 

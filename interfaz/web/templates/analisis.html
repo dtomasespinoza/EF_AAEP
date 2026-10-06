@@ -1,0 +1,352 @@
+
+{% extends "base.html" %}
+
+{% block titulo %}
+Comparación y Búsqueda
+{% endblock %}
+
+{% block encabezado %}
+Comparación y Búsqueda
+{% endblock %}
+
+{% block descripcion %}
+Herramientas de análisis de los algoritmos del curso.
+{% endblock %}
+
+{% block contenido %}
+<div class="rejilla rejilla-2 mb-2">    <div class="tarjeta">
+      <div class="tarjeta__titulo">
+<h3>🔍 Buscar por codigo</h3>
+</div>
+
+      <div class="campo mb-2">
+        <input type="text" id="buscar-codigo" placeholder="P001"
+               autocomplete="off" spellcheck="false">
+      </div>
+
+      <div class="campo mb-2">
+        <label class="campo__etiqueta">Algoritmo de busqueda</label>
+        <div class="conmutador" id="conmutador-busqueda">
+          <button type="button" data-algoritmo="BINARIA" class="activo">Binaria</button>
+          <button type="button" data-algoritmo="LINEAL">Lineal</button>
+        </div>
+        <span class="campo__pista">
+          La binaria recorre solo log₂(n) elementos, pero exige que la lista
+          este ordenada.
+        </span>
+      </div>
+
+      <div class="boton-grupo">
+        <button class="boton boton--primario crece" id="btn-buscar">Buscar</button>
+        <button class="boton boton--fantasma" id="btn-comparar"
+                title="Ejecuta las dos busquedas y contrasta el coste">
+          ⚖️
+        </button>
+      </div>
+
+      <div id="resultado-busqueda" class="mt-2">
+</div>
+    </div>
+
+    <div class="tarjeta">
+      <div class="tarjeta__titulo">
+<h3>⚖️ Comparar busquedas</h3>
+</div>
+      <p class="pequeno" style="margin-bottom:14px">
+        Ejecuta la busqueda lineal y la binaria sobre el mismo codigo y
+        muestra cuantas comparaciones hizo cada una.
+      </p>
+      <div class="campo mb-2">
+        <input type="text" id="comparar-codigo" placeholder="P050"
+               autocomplete="off" spellcheck="false">
+      </div>
+      <button class="boton boton--bloque" id="btn-comparar-busqueda">Comparar</button>
+      <div id="resultado-comparacion" class="mt-2">
+</div>
+    </div>
+
+</div>
+<div class="tarjeta mb-2">
+  <div class="tarjeta__titulo">
+    <h3>Comparar algoritmos de ordenamiento</h3>
+    <button class="boton boton--pequeno" id="btn-medir">Medir ahora</button>
+  </div>
+  <p><span id="n-medir">0</span> pedidos pendientes. Cada algoritmo ordena por peso y cuenta sus comparaciones e intercambios.</p>
+  <div id="barras-algoritmos"></div>
+  <div id="detalle-orden"></div>
+</div>
+<div class="tarjeta mt-2">
+<h3>Comparar reparto</h3>
+<button id="comparar-reparto" class="boton boton--primario">Comparar estrategias</button>
+<div id="reparto">
+</div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let algoritmoBusqueda = "BINARIA";
+
+function pintarResultadoBusqueda(datos) {
+  const contenedor = vaciar($("#resultado-busqueda"));
+  const pedido = datos.pedido;
+
+  const caja = elemento("div", {
+    clase: "tarjeta tarjeta--plana"
+  });
+  caja.style.padding = "15px";
+
+  const cabecera = elemento("div", {
+    estilo: "display:flex;align-items:center;gap:9px;margin-bottom:11px;flex-wrap:wrap;",
+  });
+  cabecera.append(
+    elemento("span", {
+      clase: "codigo",
+      texto: pedido.codigo
+    }),
+    elemento("span", {
+      clase: `insignia insignia--${pedido.pendiente ? "alerta" : "exito"}`,
+      texto: pedido.pendiente ? "Pendiente" : "Despachado",
+    })
+  );
+
+  const filas = [
+    ["Peso", peso(pedido.peso)],
+    ["Distrito", pedido.distrito || "—"],
+    ["Direccion", pedido.direccion || "—"],
+    ["Cliente", pedido.cliente || "—"],
+    ["Telefono", pedido.telefono || "—"],
+    ["Registrado", pedido.fecha_registro || "—"],
+  ];
+
+  for (const [clave, valor] of filas) {
+    const fila = elemento("div", {
+      clase: "lateral__fila"
+    });
+    fila.append(
+      elemento("span", {
+        clase: "lateral__clave",
+        texto: clave
+      }),
+      elemento("span", {
+        texto: String(valor),
+        estilo: "text-align:right;"
+      })
+    );
+    caja.appendChild(fila);
+  }
+
+  caja.insertBefore(cabecera, caja.firstChild);
+
+  caja.appendChild(elemento("div", {
+    clase: "diminuto tenue",
+    estilo: "margin-top:11px;padding-top:11px;border-top:1px solid var(--borde-suave);",
+    texto: `Encontrado con ${datos.busqueda.comparaciones} comparaciones usando busqueda ${datos.busqueda.algoritmo.toLowerCase()}.`,
+  }));
+
+  contenedor.appendChild(caja);
+}
+
+async function buscar() {
+  const codigo = $("#buscar-codigo").value.trim();
+
+  if (!codigo) {
+    avisar("Escribe un codigo de pedido.", "alerta");
+    return;
+  }
+
+  try {
+    const datos = await Api.buscar(codigo, algoritmoBusqueda);
+    pintarResultadoBusqueda(datos);
+  } catch (error) {
+    vaciar($("#resultado-busqueda"));
+    avisar(error.message, "error");
+  }
+}
+
+function pintarComparacionBusqueda(datos) {
+  const contenedor = vaciar($("#resultado-comparacion"));
+
+  const caja = elemento("div", {
+    clase: "tarjeta tarjeta--plana"
+  });
+  caja.style.padding = "15px";
+
+  const mayor = Math.max(datos.lineal.comparaciones, datos.binaria.comparaciones, 1);
+  const barras = [{
+    nombre: "Lineal",
+    dato: datos.lineal
+  }, {
+    nombre: "Binaria",
+    dato: datos.binaria
+  }, ];
+
+  for (const item of barras) {
+    const fila = elemento("div", {
+      clase: "barra-fila"
+    });
+    const pista = elemento("div", {
+      clase: "barra-fila__pista"
+    });
+    const relleno = elemento("div", {
+      clase: "barra-fila__relleno",
+      estilo: `width:${(item.dato.comparaciones / mayor) * 100}%`,
+    });
+    relleno.textContent = `${item.dato.comparaciones} comparaciones`;
+    pista.appendChild(relleno);
+
+    fila.append(
+      elemento("div", {
+        clase: "barra-fila__nombre",
+        texto: item.nombre
+      }),
+      pista,
+      elemento("div", {
+        clase: "barra-fila__valor",
+        texto: item.dato.encontrado ? "Encontrado" : "No esta",
+      })
+    );
+
+    caja.appendChild(fila);
+  }
+
+  if (datos.ahorro > 0) {
+    caja.appendChild(elemento("div", {
+      clase: "aviso aviso--exito",
+      estilo: "margin-top:12px;",
+      texto: `La busqueda binaria ahorro ${entero(datos.ahorro)} comparaciones.`,
+    }));
+  } else {
+    caja.appendChild(elemento("div", {
+      clase: "aviso aviso--informacion",
+      estilo: "margin-top:12px;",
+      texto: "En este caso la busqueda lineal no fue mas costosa: el codigo estaba cerca del inicio de la lista.",
+    }));
+  }
+
+  contenedor.appendChild(caja);
+}
+
+async function compararBusquedas() {
+  const codigo = $("#comparar-codigo").value.trim();
+
+  if (!codigo) {
+    avisar("Escribe un codigo para comparar.", "alerta");
+    return;
+  }
+
+  try {
+    pintarComparacionBusqueda(await Api.compararBusqueda(codigo));
+  } catch (error) {
+    vaciar($("#resultado-comparacion"));
+    avisar(error.message, "error");
+  }
+}
+
+/* ------------------------------------------------------------- algoritmos */
+
+/**
+ * Dibuja una barra por algoritmo, con la longitud proporcional al numero de
+ * comparaciones. El mas costoso ocupa toda la barra, y el mas rapido queda
+ * en proportion, que es lo que hace visible la diferencia.
+ */
+function pintarAlgoritmos(metricas) {
+  const contenedor = vaciar($("#barras-algoritmos"));
+
+  if (metricas.length === 0) {
+    mostrarVacio(contenedor, "📊", "Sin datos que medir", "Registra pedidos pendientes primero.");
+    return;
+  }
+
+  const maximo = Math.max(...metricas.map((m) => m.comparaciones), 1);
+  const masRapido = Math.min(...metricas.map((m) => m.comparaciones));
+
+  metricas.forEach((metrica, indice) => {
+    const proporcion = (metrica.comparaciones / maximo) * 100;
+
+    const fila = elemento("div", {
+      clase: "barra-fila"
+    });
+
+    const pista = elemento("div", {
+      clase: "barra-fila__pista"
+    });
+    const relleno = elemento("div", {
+      clase: `barra-fila__relleno ${proporcion > 60 ? "lento" : proporcion < 20 ? "rapido" : ""}`,
+      estilo: `width:${Math.max(proporcion, 6)}%`,
+      titulo: `${entero(metrica.comparaciones)} comparaciones y ${entero(metrica.intercambios)} intercambios`,
+    });
+    relleno.textContent = entero(metrica.comparaciones);
+    pista.appendChild(relleno);
+
+    fila.append(
+      elemento("div", {
+        clase: "barra-fila__nombre",
+        texto: metrica.nombre
+      }),
+      pista,
+      elemento("div", {
+        clase: "barra-fila__valor",
+        texto: duracion(metrica.milisegundos),
+      })
+    );
+
+    if (indice === 0 || metrica.comparaciones === masRapido) {
+      fila.querySelector(".barra-fila__nombre").appendChild(
+        elemento("span", {
+          clase: "insignia insignia--exito",
+          texto: "mas eficiente",
+          estilo: "margin-left:7px;",
+        })
+      );
+    }
+
+    contenedor.appendChild(fila);
+  });
+}
+
+async function medirAlgoritmos() {
+  try {
+    const datos = await Api.medirAlgoritmos("QUICKSORT");
+    $("#n-medir").textContent = entero(datos.metricas[0]?.elementos || 0);
+    pintarAlgoritmos(datos.metricas);
+
+    vaciar($("#detalle-orden")).appendChild(elemento("p", {
+      clase: "diminuto tenue mt-2",
+      texto: "Comparaciones e intercambios contados por el propio algoritmo. El tiempo se mide con perf_counter.",
+    }));
+  } catch (error) {
+    avisar(error.message, "error");
+  }
+}
+
+
+$('#btn-buscar').onclick = buscar;
+$('#btn-comparar').onclick = () => {
+  $('#comparar-codigo').value = $('#buscar-codigo').value;
+  compararBusquedas();
+};
+$('#btn-comparar-busqueda').onclick = compararBusquedas;
+$('#btn-medir').onclick = medirAlgoritmos;
+alPresionarEnter($('#buscar-codigo'), buscar);
+alPresionarEnter($('#comparar-codigo'), compararBusquedas);
+$('#conmutador-busqueda').onclick = e => {
+  const b = e.target.closest('button');
+  if (!b) return;
+  $$('#conmutador-busqueda button').forEach(x => x.classList.remove('activo'));
+  b.classList.add('activo');
+  algoritmoBusqueda = b.dataset.algoritmo;
+};
+$('#comparar-reparto').onclick = async () => {
+  try {
+    const d = await Api.compararEstrategias();
+    const c = vaciar($('#reparto'));
+    d.planes.forEach(p => c.append(elemento('p', {
+      texto: `${p.estrategia_etiqueta}: ${p.cantidad} pedidos · ${peso(p.peso_total)} · ${duracion(p.milisegundos)}`
+    })));
+  } catch (e) {
+    avisar(e.message, 'error');
+  }
+};
+</script>
+{% endblock %}

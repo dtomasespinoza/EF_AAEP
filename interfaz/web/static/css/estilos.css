@@ -1121,3 +1121,10 @@ tbody tr:last-child td { border-bottom: none; }
   body { background: #fff; color: #000; }
   .tarjeta, .tabla-caja { border: 1px solid #ccc; box-shadow: none; }
 }
+
+/* Separacion de las cargas y sus detalles. */
+.grupo-mochila { margin: 16px 0; }
+.grupo-mochila > summary { cursor: pointer; font-weight: 600; margin-bottom: 10px; }
+.tarjeta > h3, #detalle > h3 { margin-bottom: 12px; }
+#detalle > h4 { margin-top: 18px; margin-bottom: 8px; }
+#masivo > button, #individual > button { margin-top: 16px; }

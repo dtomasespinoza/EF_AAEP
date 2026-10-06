@@ -1,326 +1,130 @@
-{% extends "base.html" %}
-{% set activo = 'carga' %}
 
-{% block titulo %}Carga masiva{% endblock %}
-{% block encabezado %}Carga masiva{% endblock %}
+{% extends "base.html" %}
+
+{% block titulo %}
+Carga masiva
+{% endblock %}
+
+{% block encabezado %}
+Carga masiva
+{% endblock %}
+
 {% block descripcion %}
-  Genera pedidos de prueba con direcciones aleatorias o importa los tuyos desde un archivo.
+Importa tus pedidos desde un archivo y confirma antes de guardarlos.
 {% endblock %}
 
 {% block contenido %}
-
-<div class="rejilla rejilla-2 mb-2">
-
-  <div class="tarjeta">
-    <div class="tarjeta__titulo">
-      <h3>🎲 Generar pedidos aleatorios</h3>
-    </div>
-
-    <p class="pequeno mb-2">
-      Crea pedidos con peso y direccion generados al azar. Sirve para probar
-      el sistema y para ver como se comportan los algoritmos con volumen:
-      la burbuja con 2000 pedidos tarda mucho mas que QuickSort.
-    </p>
-
-    <form id="form-generar" style="display:flex;flex-direction:column;gap:14px">
-      <div class="campo">
-        <label class="campo__etiqueta" for="cantidad">Cantidad de pedidos</label>
-        <div class="sufijo">
-          <input type="number" id="cantidad" value="50" min="1" max="5000" step="1" required>
-          <span class="sufijo__texto">ped.</span>
-        </div>
-        <span class="campo__pista">Maximo 5000 por generacion.</span>
-      </div>
-
-      <div class="campo">
-        <label class="campo__etiqueta" for="semilla">Semilla (opcional)</label>
-        <input type="number" id="semilla" placeholder="42" step="1">
-        <span class="campo__pista">
-          Dos ejecuciones con la misma semilla generan los mismos pedidos.
-          Dejala vacia para resultados distintos cada vez.
-        </span>
-      </div>
-
-      <div class="campo">
-        <label class="campo__etiqueta">Direcciones de entrega</label>
-        <div class="conmutador" id="conmutador-direcciones">
-          <button type="button" data-valor="1" class="activo">Generar direcciones</button>
-          <button type="button" data-valor="0">Solo pesos</button>
-        </div>
-      </div>
-
-      <button type="submit" class="boton boton--primario boton--bloque" id="btn-generar">
-        Generar pedidos
-      </button>
-    </form>
-
-    <div class="tarjeta__pie">
-      Los pesos usan una distribucion Pareto: muchos pedidos ligeros y unos
-      pocos pesados, que es como se comporta una operacion de reparto real.
-    </div>
-  </div>
-
-  <div class="tarjeta">
-    <div class="tarjeta__titulo">
-      <h3>📄 Importar desde archivo</h3>
-      <a href="{{ url_for('api_plantilla') }}" class="boton boton--fantasma boton--pequeno">
-        Descargar ejemplo
-      </a>
-    </div>
-
-    <p class="pequeno mb-2">
-      Acepta <b>CSV</b>, <b>TXT</b> y <b>Excel (.xlsx)</b>. Las columnas se
-      detectan solas por su nombre, asi que no importa el orden ni el
-      idioma. Cada fila se valida por separado: si una falla, las demas se
-      importan igual.
-    </p>
-
-    <div class="zona-subida" id="zona-subida" tabindex="0" role="button"
-         aria-label="Seleccionar archivo para importar">
-      <div class="zona-subida__icono">📁</div>
-      <div class="zona-subida__nombre" id="nombre-archivo">Arrastra el archivo o haz clic</div>
-      <div class="zona-subida__pista">CSV, TXT o XLSX · maximo 16 MB</div>
-      <input type="file" id="archivo" accept=".csv,.txt,.xlsx,.xlsm" class="oculto">
-    </div>
-
-    <div id="resultado-importacion" class="mt-2"></div>
-
-    <details class="mt-2">
-      <summary class="pequeno tenue" style="cursor:pointer">
-        Ver ejemplo de formato
-      </summary>
-      <div class="ejemplo mt-1">Peso,Direccion,Cliente,Telefono
-2.50,Calle 10 #3-22 La Castilla,Ana García,3001234567
-18.00,Carrera 45 #12-08 El Cedro,Juan Rodríguez,3109876543
-7.25,Avenida 80 #45-30 La Flora,María López,3215554433</div>
-      <p class="diminuto tenue mt-1">
-        En un TXT basta con el peso en cada linea, o
-        <span class="mono">peso; direccion</span> separado por punto y coma.
-        El peso admite coma o punto decimal.
-      </p>
-    </details>
-  </div>
-
+<div class="tarjeta mb-2">
+<h3>Importar archivo</h3>
+<p>Sube un TXT, CSV o XLSX. Revisa la vista previa y confirma los pedidos válidos.</p>
+<a class="boton" href="/api/carga/plantilla">Descargar ejemplo CSV</a>
+<div class="campo">
+<label for="archivo" class="campo__etiqueta">Seleccionar archivo</label>
+<input id="archivo" type="file" accept=".txt,.csv,.xlsx,.xlsm">
 </div>
-
+<p>CSV: Peso,Direccion,Distrito,Cliente,Telefono. TXT: un peso por línea o peso; dirección; cliente; teléfono. Para separar distrito y dirección, usa encabezado: Peso;Distrito;Direccion;Cliente;Telefono.</p>
+<div id="resumen">
+</div>
+<button id="confirmar" class="boton boton--primario">Confirmar pedidos</button> <button id="cancelar" class="boton">Cancelar importación</button>
+</div>
 <div class="tarjeta">
-  <div class="tarjeta__titulo">
-    <h3>📊 Vista previa</h3>
-    <span class="insignia insignia--primaria" id="contador-pedidos">0</span>
-  </div>
-
-  <div class="tabla-caja">
-    <div class="tabla-scroll">
-      <table>
-        <thead>
-          <tr>
-            <th>Codigo</th>
-            <th>Peso</th>
-            <th>Direccion</th>
-            <th>Cliente</th>
-            <th>Telefono</th>
-          </tr>
-        </thead>
-        <tbody id="cuerpo-pedidos"></tbody>
-      </table>
-    </div>
-  </div>
+<h3>Vista previa del archivo</h3>
+<label for="agrupar">Organizar vista previa</label>
+<select id="agrupar">
+<option value="codigo">Código</option>
+<option value="distrito">Agrupar por distrito</option>
+</select>
+<div id="vista">
 </div>
-
+</div>
 {% endblock %}
 
 {% block scripts %}
 <script>
-const CAPACIDAD = {{ capacidad }};
-let conDirecciones = true;
+let token = null,
+  pedidos = [],
+  subida = 0;
 
-function filaPedido(pedido) {
-  const fila = elemento("tr");
-
-  const celdaCodigo = elemento("td");
-  celdaCodigo.appendChild(elemento("span", { clase: "codigo", texto: pedido.codigo }));
-
-  fila.append(celdaCodigo);
-  fila.append(elemento("td", { clase: "numero", texto: peso(pedido.peso) }));
-  fila.append(elemento("td", { texto: pedido.direccion || "—" }));
-  fila.append(elemento("td", { texto: pedido.cliente || "—" }));
-  fila.append(elemento("td", { clase: "mono", texto: pedido.telefono || "—" }));
-
-  return fila;
-}
-
-async function cargarPedidos() {
-  const cuerpo = $("#cuerpo-pedidos");
-
-  try {
-    const datos = await Api.listar({ solo_pendientes: 1, orden: "QUICKSORT", descendente: 1 });
-    $("#contador-pedidos").textContent = entero(datos.total);
-    vaciar(cuerpo);
-
-    if (datos.pedidos.length === 0) {
-      mostrarVacio(cuerpo, "📭", "Sin pedidos", "Genera pedidos o importa un archivo para empezar.");
-      return;
-    }
-
-    for (const pedido of datos.pedidos) {
-      cuerpo.appendChild(filaPedido(pedido));
-    }
-  } catch (error) {
-    avisar(error.message, "error");
-  }
-}
-
-/* ------------------------------------------------------------- generacion */
-
-$("#form-generar").addEventListener("submit", async (evento) => {
-  evento.preventDefault();
-
-  const boton = $("#btn-generar");
-  boton.disabled = true;
-  boton.textContent = "Generando…";
-
-  try {
-    const resultado = await Api.generar(
-      $("#cantidad").value,
-      conDirecciones,
-      $("#semilla").value
-    );
-    avisar(resultado.mensaje, "exito");
-    await cargarPedidos();
-    refrescarLateral();
-  } catch (error) {
-    avisar(error.message, "error");
-  } finally {
-    boton.disabled = false;
-    boton.textContent = "Generar pedidos";
-  }
-});
-
-$("#conmutador-direcciones").addEventListener("click", (evento) => {
-  const boton = evento.target.closest("button");
-  if (!boton) return;
-  $$("#conmutador-direcciones button").forEach((b) => b.classList.remove("activo"));
-  boton.classList.add("activo");
-  conDirecciones = boton.dataset.valor === "1";
-});
-
-/* --------------------------------------------------------------- importacion */
-
-const zona = $("#zona-subida");
-const entradaArchivo = $("#archivo");
-
-zona.addEventListener("click", () => entradaArchivo.click());
-zona.addEventListener("keydown", (evento) => {
-  if (evento.key === "Enter" || evento.key === " ") {
-    evento.preventDefault();
-    entradaArchivo.click();
-  }
-});
-
-/* Resaltado visual mientras se arrastra un archivo encima. */
-for (const evento of ["dragenter", "dragover"]) {
-  zona.addEventListener(evento, (e) => {
-    e.preventDefault();
-    zona.classList.add("arrastrando");
-  });
-}
-
-for (const evento of ["dragleave", "drop"]) {
-  zona.addEventListener(evento, (e) => {
-    e.preventDefault();
-    zona.classList.remove("arrastrando");
-  });
-}
-
-zona.addEventListener("drop", (evento) => {
-  const archivo = evento.dataTransfer.files[0];
-  if (archivo) {
-    procesarArchivo(archivo);
-  }
-});
-
-entradaArchivo.addEventListener("change", () => {
-  if (entradaArchivo.files[0]) {
-    procesarArchivo(entradaArchivo.files[0]);
-  }
-});
-
-async function procesarArchivo(archivo) {
-  $("#nombre-archivo").textContent = archivo.name;
-
-  try {
-    const datos = await Api.subirArchivo(archivo);
-    pintarImportacion(datos);
-    await cargarPedidos();
-    refrescarLateral();
-  } catch (error) {
-    vaciar($("#resultado-importacion"));
-    avisar(error.message, "error");
-  } finally {
-    // Se limpia el input para poder volver a seleccionar el mismo archivo.
-    entradaArchivo.value = "";
-  }
-}
-
-function pintarImportacion(datos) {
-  const contenedor = vaciar($("#resultado-importacion"));
-
-  const caja = elemento("div", { clase: "tarjeta tarjeta--plana" });
-  caja.style.padding = "15px";
-
-  const titulo = elemento("div", {
-    estilo: "display:flex;align-items:center;gap:9px;margin-bottom:11px;flex-wrap:wrap;",
-  });
-  titulo.append(
-    elemento("span", {
-      clase: `insignia insignia--${datos.total_errores ? "alerta" : "exito"}`,
-      texto: datos.formato,
-    }),
-    elemento("span", { clase: "negrita", texto: datos.resumen })
+function pintar() {
+  const contenedor = vaciar($('#vista'));
+  const campo = $('#agrupar').value;
+  const ordenados = [...pedidos].sort((a, b) =>
+    String(a[campo] || '').localeCompare(String(b[campo] || ''), 'es', { numeric: true })
   );
-  caja.appendChild(titulo);
-
-  const hallazgos = elemento("div", { clase: "rejilla rejilla-3", estilo: "gap:11px" });
-  for (const [etiqueta, valor] of [
-    ["Filas leidas", datos.filas_leidas],
-    ["Importados", datos.total_importados],
-    ["Con error", datos.total_errores],
-  ]) {
-    const mini = elemento("div");
-    mini.append(
-      elemento("div", { clase: "diminuto tenue", texto: etiqueta }),
-      elemento("div", { clase: "mono negrita", texto: entero(valor), estilo: "font-size:1.16rem;" })
-    );
-    hallazgos.appendChild(mini);
+  if (campo !== 'distrito') {
+    tablaPedidos(contenedor, ordenados);
+    return;
   }
-  caja.appendChild(hallazgos);
-
-  if (datos.errores.length > 0) {
-    const lista = elemento("div", { estilo: "margin-top:14px;max-height:220px;overflow-y:auto;" });
-
-    for (const error of datos.errores) {
-      const fila = elemento("div", {
-        estilo: "display:flex;gap:9px;padding:8px 0;border-top:1px solid var(--borde-suave);font-size:0.82rem;",
-      });
-      fila.append(
-        elemento("span", { clase: "insignia insignia--peligro", texto: `F${error.linea}` }),
-        elemento("span", { texto: error.mensaje }),
-      );
-      lista.appendChild(fila);
-    }
-
-    caja.appendChild(elemento("div", {
-      clase: "diminuto tenue",
-      estilo: "margin-top:12px;",
-      texto: "Filas con error:",
-    }));
-    caja.appendChild(lista);
+  const grupos = new Map();
+  for (const pedido of ordenados) {
+    const nombre = pedido.distrito.trim() || 'Sin distrito';
+    const clave = nombre.toLocaleLowerCase('es');
+    if (!grupos.has(clave)) grupos.set(clave, {nombre, pedidos: []});
+    grupos.get(clave).pedidos.push(pedido);
   }
-
-  contenedor.appendChild(caja);
-  avisar(datos.resumen, datos.total_errores ? "alerta" : "exito");
+  for (const grupo of grupos.values()) {
+    const bloque = elemento('details', {open: true, clase: 'grupo-mochila'});
+    bloque.append(elemento('summary', {texto: `${grupo.nombre}: ${grupo.pedidos.length} pedidos`}));
+    const tabla = elemento('div');
+    tablaPedidos(tabla, grupo.pedidos);
+    bloque.append(tabla);
+    contenedor.append(bloque);
+  }
 }
 
-cargarPedidos();
+function limpiar() {
+  token = null;
+  pedidos = [];
+  $('#confirmar').disabled = true;
+  vaciar($('#resumen'));
+  pintar();
+}
+limpiar();
+$('#agrupar').onchange = pintar;
+$('#cancelar').onclick = () => {
+  subida++;
+  limpiar();
+};
+$('#archivo').onchange = async () => {
+  const archivo = $('#archivo').files[0];
+  if (!archivo) return;
+  const turno = ++subida;
+  limpiar();
+  try {
+    const d = await Api.subirArchivo(archivo);
+    if (turno !== subida) return;
+    token = d.token;
+    const v = d.vista_previa;
+    pedidos = v.pedidos;
+    $('#resumen').append(elemento('p', {
+      texto: `Se ha subido el archivo. ${pedidos.length} pedidos válidos. ¿Confirmar pedidos?`
+    }));
+    v.errores.forEach(e => $('#resumen').append(elemento('p', {
+      texto: `Fila ${e.linea}: ${e.mensaje}`
+    })));
+    pintar();
+    $('#confirmar').disabled = !pedidos.length;
+  } catch (e) {
+    avisar(e.message, 'error');
+  } finally {
+    $('#archivo').value = '';
+  }
+};
+$('#confirmar').onclick = async () => {
+  if (!token) return;
+  $('#confirmar').disabled = true;
+  try {
+    const d = await Api.enviar('/api/carga/confirmar', 'POST', {
+      token
+    });
+    token = null;
+    avisar(d.mensaje, 'exito');
+    $('#resumen').textContent = d.mensaje;
+    await refrescarLateral();
+  } catch (e) {
+    avisar(e.message, 'error');
+    $('#confirmar').disabled = !token;
+  }
+};
 </script>
 {% endblock %}

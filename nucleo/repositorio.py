@@ -87,16 +87,7 @@ class Repositorio:
             for codigo, valores in datos.get("pedidos", {}).items()
         }
         self.salidas = [
-            Salida(
-                id=registro.get("id", indice + 1),
-                codigos=list(registro.get("codigos", [])),
-                peso_total=float(registro.get("peso_total", 0.0)),
-                capacidad=float(registro.get("capacidad", 30.0)),
-                cantidad=int(registro.get("cantidad", 0)),
-                estrategia=str(registro.get("estrategia", "")),
-                prioritario=registro.get("prioritario"),
-                fecha=str(registro.get("fecha", "")),
-            )
+            Salida.desde_dict(registro, indice + 1)
             for indice, registro in enumerate(datos.get("salidas", []))
         ]
         self.contador = int(datos.get("contador", self._siguiente_contador()))
@@ -130,16 +121,15 @@ class Repositorio:
             "version": VERSION_ARCHIVO,
             "contador": self.contador,
             "pedidos": {codigo: pedido.a_dict() for codigo, pedido in self.pedidos.items()},
+            # Se guarda `a_dict()` para no repetir la lista de campos en dos
+            # sitios. `ocupacion` se quita porque es un valor DERIVADO: si se
+            # guardara, podria desincronizarse del peso si someday cambiara
+            # la formula, y el archivo acabaria mintiendo.
             "salidas": [
                 {
-                    "id": salida.id,
-                    "codigos": salida.codigos,
-                    "peso_total": salida.peso_total,
-                    "capacidad": salida.capacidad,
-                    "cantidad": salida.cantidad,
-                    "estrategia": salida.estrategia,
-                    "prioritario": salida.prioritario,
-                    "fecha": salida.fecha,
+                    clave: valor
+                    for clave, valor in salida.a_dict().items()
+                    if clave != "ocupacion"
                 }
                 for salida in self.salidas
             ],

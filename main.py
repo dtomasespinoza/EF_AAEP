@@ -167,20 +167,9 @@ def accion_listar(servicio: RAPPIDOS) -> None:
 def accion_generar(servicio: RAPPIDOS) -> None:
     titulo("GENERAR PEDIDOS ALEATORIOS")
 
-    aviso("Es para hacer pruebas y ver estadisticas. Genera con direcciones.")
-    cantidad = pedir("Cuantos pedidos", "50")
-    semilla = pedir("Semilla (vacio = al azar)")
-
-    resultado = servicio.generar_masivo(
-        int(cantidad) if cantidad.isdigit() else 0,
-        con_direcciones=True,
-        semilla=int(semilla) if semilla.isdigit() else None,
-    )
-
-    if resultado.ok:
-        exito(resultado.mensaje)
-    else:
-        fallo(resultado.mensaje)
+    aviso("Esta opcion ha sido desactivada: el sistema ahora importa por archivo con confirmacion.")
+    aviso("Para generar datos de prueba, descarga la plantilla y sube un archivo, o registra manualmente.")
+    return
 
 
 def accion_importar(servicio: RAPPIDOS) -> None:

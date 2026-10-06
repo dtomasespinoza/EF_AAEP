@@ -29,7 +29,10 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple
 from .modelos import PESO_MAXIMO_KG, PESO_MINIMO_KG, Pedido
 
 #: Palabras clave para reconocer cada columna, en español y en inglés.
+#: La lista de un campo se prueba con `in`, no con igualdad, para que
+#: "Distrito de entrega" se reconozca igual que "distrito".
 CLAVES_PESO = ("peso", "peso_kg", "kg", "weight", "peso_envio")
+CLAVES_DISTRITO = ("distrito", "barrio", "localidad", "zona", "sector", "district")
 CLAVES_DIRECCION = ("direccion", "address", "destino", "domicilio", "dir")
 CLAVES_CLIENTE = ("cliente", "nombre", "customer", "name", "destinatario")
 CLAVES_TELEFONO = ("telefono", "phone", "celular", "movil", "contacto")
@@ -322,11 +325,11 @@ def _procesar_tabla(
             continue
 
         if mapa_columnas is not None and mapa_columnas:
-            peso_texto, direccion, cliente, telefono = _extraer_con_encabezado(
+            peso_texto, distrito, direccion, cliente, telefono = _extraer_con_encabezado(
                 fila, mapa_columnas
             )
         else:
-            peso_texto, direccion, cliente, telefono = _extraer_posicional(fila)
+            peso_texto, distrito, direccion, cliente, telefono = _extraer_posicional(fila)
 
         error = _validar_peso(peso_texto)
 
@@ -348,6 +351,7 @@ def _procesar_tabla(
                 direccion=direccion,
                 cliente=cliente,
                 telefono=telefono,
+                distrito=distrito,
             )
         )
 
@@ -369,8 +373,14 @@ def _mapear_columnas(encabezado: Sequence[str]) -> Optional[Dict[str, int]]:
         if not normalizado:
             continue
 
+        # El orden importa: "distrito" se prueba ANTES que "direccion" porque
+        # ambos son claves posibles y un archivo con las dos columnas debe
+        # mapear cada una a su campo. "barrio" y "zona" viven en el mismo
+        # grupo porque significan lo mismo para agrupar la carga.
         if "peso" not in mapa and any(clave in normalizado for clave in CLAVES_PESO):
             mapa["peso"] = indice
+        elif "distrito" not in mapa and any(clave in normalizado for clave in CLAVES_DISTRITO):
+            mapa["distrito"] = indice
         elif "direccion" not in mapa and any(clave in normalizado for clave in CLAVES_DIRECCION):
             mapa["direccion"] = indice
         elif "cliente" not in mapa and any(clave in normalizado for clave in CLAVES_CLIENTE):
@@ -383,7 +393,7 @@ def _mapear_columnas(encabezado: Sequence[str]) -> Optional[Dict[str, int]]:
 
 def _extraer_con_encabezado(
     fila: Sequence[str], mapa: Dict[str, int]
-) -> Tuple[str, str, str, str]:
+) -> Tuple[str, str, str, str, str]:
     """Lee los valores usando el mapa de columnas detectado."""
 
     def valor(clave: str) -> str:
@@ -392,18 +402,29 @@ def _extraer_con_encabezado(
             return ""
         return str(fila[indice]).strip()
 
-    return valor("peso"), valor("direccion"), valor("cliente"), valor("telefono")
+    return (
+        valor("peso"),
+        valor("distrito"),
+        valor("direccion"),
+        valor("cliente"),
+        valor("telefono"),
+    )
 
 
-def _extraer_posicional(fila: Sequence[str]) -> Tuple[str, str, str, str]:
+def _extraer_posicional(fila: Sequence[str]) -> Tuple[str, str, str, str, str]:
     """Lee los valores por posicion, para archivos sin encabezado.
 
     El peso siempre va primero. Los campos siguientes se asignan por
-    orden: direccion, cliente y telefono. Se reconoce el telefono porque
-    es el unico que empieza por digito y mide 10 caracteres, lo que evita
-    confundirlo con un nombre propio.
+    orden: distrito, direccion, cliente y telefono. Se reconoce el telefono
+    porque es el unico que empieza por digito y mide 10 caracteres, lo que
+    evita confundirlo con un nombre propio.
+
+    Si NO hay distrito, se deduce de lo que sigue a la ultima coma de la
+    direccion, que es donde venia escrito antes de separarlo. Asi un
+    archivo antiguo sin columna de distrito sigue agrupando bien.
     """
     peso = str(fila[0]).strip() if len(fila) > 0 else ""
+    distrito = ""
     direccion = ""
     cliente = ""
     telefono = ""
@@ -423,7 +444,10 @@ def _extraer_posicional(fila: Sequence[str]) -> Tuple[str, str, str, str]:
         else:
             telefono = telefono or valor
 
-    return peso, direccion, cliente, telefono
+    if direccion and "," in direccion:
+        distrito = direccion.rsplit(",", 1)[-1].strip()
+
+    return peso, distrito, direccion, cliente, telefono
 
 
 def _validar_peso(texto: str) -> str:
@@ -551,10 +575,11 @@ def _parece_encabezado(fila: Sequence[str]) -> bool:
 
 
 def plantilla_csv() -> str:
-    """Contenido de ejemplo para que el usuario sepa que formato usar."""
+    """Contenido de ejemplo para que el usuario vea el formato."""
     return (
-        "Peso,Direccion,Cliente,Telefono\n"
-        "2.50,Calle 10 #3-22 La Castilla,Ana García,3001234567\n"
-        "18.00,Carrera 45 #12-08 El Cedro,Juan Rodríguez,3109876543\n"
-        "7.25,Avenida 80 #45-30 La Flora,María López,3215554433\n"
+        "Peso,Distrito,Direccion,Cliente,Telefono\n"
+        "2.50,La Castilla,Calle 10 #3-22,Ana García,3001234567\n"
+        "18.00,El Cedro,Carrera 45 #12-08,Juan Rodríguez,3109876543\n"
+        "7.25,La Flora,Avenida 80 #45-30,María López,3215554433\n"
+        "12.00,La Castilla,Transversal 22 #5-14,Pedro Gómez,3009988776\n"
     )

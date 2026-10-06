@@ -1,435 +1,195 @@
-{% extends "base.html" %}
-{% set activo = 'salidas' %}
 
-{% block titulo %}Preparar salida{% endblock %}
-{% block encabezado %}Preparar salida{% endblock %}
+{% extends "base.html" %}
+
+{% block titulo %}
+Preparar salida
+{% endblock %}
+
+{% block encabezado %}
+Preparar salida
+{% endblock %}
+
 {% block descripcion %}
-  Elige el algoritmo de carga, revisa el plan y confirma el despacho.
+Prepara varios viajes, revisa cada mochila y consulta lo que salió en el historial.
 {% endblock %}
 
 {% block contenido %}
-
 <div class="tarjeta mb-2">
-  <div class="tarjeta__titulo">
-    <h3>⚙️ Configuracion del viaje</h3>
-  </div>
-
-  <div class="rejilla rejilla-3">
-    <div class="campo">
-      <label class="campo__etiqueta" for="estrategia">Algoritmo de reparto</label>
-      <select id="estrategia"></select>
-      <span class="campo__pista" id="descripcion-estrategia">—</span>
-    </div>
-
-    <div class="campo">
-      <label class="campo__etiqueta" for="prioritario">Pedido prioritario (opcional)</label>
-      <input type="text" id="prioritario" placeholder="P001" spellcheck="false"
-             autocomplete="off" style="text-transform:uppercase">
-      <span class="campo__pista">
-        Se carga siempre primero y descuenta su peso de la capacidad.
-      </span>
-    </div>
-
-    <div class="campo">
-      <label class="campo__etiqueta" for="objetivo">Objetivo de la mochila 0/1</label>
-      <select id="objetivo"></select>
-      <span class="campo__pista">
-        Solo aplica a la mochila dinamica. Maximizar el numero de pedidos
-        suele ser mejor que maximizar el peso.
-      </span>
-    </div>
-  </div>
-
-  <div class="boton-grupo mt-3">
-    <button class="boton boton--primario" id="btn-planear">Simular plan</button>
-    <button class="boton" id="btn-comparar">⚖️ Comparar algoritmos</button>
-  </div>
+<div class="rejilla rejilla-3">
+<div class="campo">
+<label for="estrategia">Algoritmo de reparto</label>
+<select id="estrategia">
+</select>
 </div>
-
-<div class="rejilla rejilla-paleta">
-
-  <div style="display:flex;flex-direction:column;gap:18px">
-    <div class="tarjeta">
-      <div class="tarjeta__titulo"><h3>🚚 Ocupacion del vehiculo</h3></div>
-      <div class="medidor" id="medidor">
-        <div class="medidor__barra">
-          <div class="medidor__carga" id="medidor-carga" style="width:0%">—</div>
-          <div class="medidor__marca" style="left:50%"></div>
-          <div class="medidor__marca" style="left:75%"></div>
-        </div>
-        <div class="medidor__pie">
-          <span id="medidor-izq">0 kg</span>
-          <span id="medidor-centro">—</span>
-          <span id="medidor-der">{{ capacidad }} kg</span>
-        </div>
-      </div>
-
-      <div class="rejilla rejilla-2 mt-3" style="gap:11px">
-        <div>
-          <div class="diminuto tenue">Pedidos seleccionados</div>
-          <div class="mono negrita" id="m-cantidad" style="font-size:1.3rem">—</div>
-        </div>
-        <div>
-          <div class="diminuto tenue">Peso despachado</div>
-          <div class="mono negrita" id="m-peso" style="font-size:1.3rem">—</div>
-        </div>
-      </div>
-    </div>
-
-    <div class="tarjeta">
-      <div class="tarjeta__titulo"><h3>📊 Comparacion</h3></div>
-      <p class="pequeno mb-2">
-        Las tres estrategias sobre los mismos pedidos. La mochila 0/1 es la
-        unica que garantiza el maximo de pedidos, a cambio de su costo
-        computacional.
-      </p>
-      <div id="comparacion"></div>
-    </div>
-  </div>
-
-  <div class="tarjeta">
-    <div class="tarjeta__titulo">
-      <h3>📦 Plan de carga</h3>
-      <div class="boton-grupo">
-        <button class="boton boton--fantasma boton--pequeno" id="btn-actualizar">↻</button>
-        <button class="boton boton--exito boton--pequeno" id="btn-confirmar" disabled>
-          Confirmar salida
-        </button>
-      </div>
-    </div>
-
-    <div class="plan-lista" id="plan-lista"></div>
-
-    <div id="descartados" class="mt-3 oculto"></div>
-
-    <div class="tarjeta__pie">
-      Nada se despacha hasta que confirmes. Simular el plan no modifica los
-      pedidos: es la forma de revisar la carga antes de decidir.
-    </div>
-  </div>
-
+<div class="campo">
+<label for="objetivo">Objetivo de mochila</label>
+<select id="objetivo">
+</select>
 </div>
-
-<div class="tarjeta mt-3">
-  <div class="tarjeta__titulo">
-    <h3>🕘 Historial de salidas</h3>
-    <span class="insignia insignia--neutra" id="contador-salidas">0</span>
-  </div>
-  <div class="tabla-caja">
-    <div class="tabla-scroll">
-      <table>
-        <thead>
-          <tr>
-            <th>#</th>
-            <th>Fecha</th>
-            <th>Estrategia</th>
-            <th class="numero">Pedidos</th>
-            <th class="numero">Peso</th>
-            <th class="numero">Ocupacion</th>
-          </tr>
-        </thead>
-        <tbody id="cuerpo-salidas"></tbody>
-      </table>
-    </div>
-  </div>
+<div class="campo">
+<label for="viajes" class="campo__etiqueta">Máximo de viajes (0 = todos)</label>
+<input id="viajes" type="number" value="0" min="0" step="1">
 </div>
-
+<div class="campo">
+<label for="prioritario" class="campo__etiqueta">Código prioritario (opcional)</label>
+<input id="prioritario" type="text" >
+</div>
+</div>
+<button id="planear" class="boton boton--primario">Preparar mochilas</button> <button id="confirmar" class="boton boton--primario">Confirmar salida</button>
+</div>
+<div class="tarjeta mb-2">
+<h3>Plan de carga</h3>
+<p id="resumen">
+</p>
+<div id="plan">
+</div>
+</div>
+<div class="tarjeta">
+<h3>Historial de salidas</h3>
+<div id="historial">
+</div>
+<div id="detalle">
+</div>
+</div>
 {% endblock %}
 
 {% block scripts %}
 <script>
-const CAPACIDAD = {{ capacidad }};
+let configuracion = null;
 
-/* ------------------------------------------------------------ configuracion */
-
-(async function configurar() {
-  try {
-    const catalogo = await cargarCatalogo();
-    llenarSelect($("#estrategia"), catalogo.estrategias_reparto, "PRIMERO_QUE_CABE");
-    llenarSelect($("#objetivo"), catalogo.objetivos, "CANTIDAD");
-
-    const actualizarDescripcion = () => {
-      const elegida = catalogo.estrategias_reparto.find(
-        (e) => e.valor === $("#estrategia").value
-      );
-      $("#descripcion-estrategia").textContent = elegida ? elegida.descripcion : "—";
-    };
-
-    $("#estrategia").addEventListener("change", actualizarDescripcion);
-    actualizarDescripcion();
-
-    // Permite llegar desde la lista de pedidos con ?prioritario=P001
-    const parametro = new URLSearchParams(window.location.search).get("prioritario");
-    if (parametro) {
-      $("#prioritario").value = parametro.toUpperCase();
-    }
-
-    await planear();
-    await cargarComparacion();
-    await cargarHistorial();
-  } catch (error) {
-    avisar(error.message, "error");
-  }
-})();
-
-/* ------------------------------------------------------------------- plan */
-
-function pintarMedidor(plan) {
-  const ocupacion = Math.min(plan.ocupacion, 100);
-  const carga = $("#medidor-carga");
-
-  carga.style.width = `${ocupacion}%`;
-  carga.textContent = `${peso(plan.peso_total)} · ${plan.ocupacion}%`;
-  carga.className = `medidor__carga ${clasePeso(plan.peso_total, CAPACIDAD)}`;
-
-  $("#medidor-izq").textContent = "0 kg";
-  $("#medidor-der").textContent = `${CAPACIDAD} kg`;
-  $("#medidor-centro").textContent = `Libre: ${peso(plan.disponible)}`;
-
-  $("#m-cantidad").textContent = entero(plan.cantidad);
-  $("#m-peso").textContent = peso(plan.peso_total);
+function invalidar() {
+  configuracion = null;
+  $('#confirmar').disabled = true;
+  $('#resumen').textContent = 'Prepara el plan para revisar las mochilas.';
+  vaciar($('#plan'));
 }
 
-function pintarPlan(plan) {
-  pintarMedidor(plan);
-
-  const lista = vaciar($("#plan-lista"));
-  const descartados = vaciar($("#descartados"));
-  descartados.classList.add("oculto");
-
-  if (plan.seleccionados.length === 0) {
-    mostrarVacio(
-      lista,
-      "🚫",
-      "Ningun pedido cabe",
-      "El pedido prioritario ocupa toda la capacidad del vehiculo."
-    );
-    $("#btn-confirmar").disabled = true;
-    return;
-  }
-
-  for (const pedido of plan.seleccionados) {
-    const fila = elemento("div", {
-      clase: `plan-item ${pedido.codigo === plan.prioritario ? "prioritario" : ""}`,
-    });
-
-    const izquierda = elemento("div", {
-      estilo: "display:flex;align-items:center;gap:10px;min-width:0;",
-    });
-
-    izquierda.append(
-      elemento("span", { clase: "codigo", texto: pedido.codigo })
-    );
-
-    const info = elemento("div", { estilo: "min-width:0;" });
-    info.append(elemento("div", {
-      clase: "plan-item__direccion",
-      texto: pedido.direccion || "Sin direccion",
-    }));
-    if (pedido.cliente) {
-      info.appendChild(elemento("div", { clase: "diminuto tenue", texto: pedido.cliente }));
-    }
-
-    izquierda.appendChild(info);
-
-    if (pedido.codigo === plan.prioritario) {
-      izquierda.appendChild(elemento("span", {
-        clase: "insignia insignia--alerta",
-        texto: "Prioritario",
-      }));
-    }
-
-    fila.append(izquierda, elemento("div", { clase: "plan-item__peso", texto: peso(pedido.peso) }));
-    lista.appendChild(fila);
-  }
-
-  if (plan.descartados.length > 0) {
-    const bloque = elemento("div", { clase: "tarjeta tarjeta--plana" });
-    bloque.style.padding = "15px";
-
-    bloque.appendChild(elemento("div", {
-      estilo: "display:flex;align-items:center;gap:9px;margin-bottom:9px;",
-      texto: `Quedan ${entero(plan.descartados.length)} pedido(s) sin despachar`,
-    }));
-
-    const chips = elemento("div", { estilo: "display:flex;gap:7px;flex-wrap:wrap;" });
-
-    for (const item of plan.descartados.slice(0, 24)) {
-      const chip = elemento("span", {
-        clase: "insignia insignia--neutra",
-        texto: `${item.codigo} · ${peso(item.peso)}`,
-        titulo: item.motivo,
-      });
-      chips.appendChild(chip);
-    }
-
-    if (plan.descartados.length > 24) {
-      chips.appendChild(elemento("span", {
-        clase: "insignia insignia--neutra",
-        texto: `+${entero(plan.descartados.length - 24)} mas`,
-      }));
-    }
-
-    bloque.appendChild(chips);
-    bloque.appendChild(elemento("p", {
-      clase: "diminuto tenue",
-      estilo: "margin-top:11px;",
-      texto: plan.descartados[0].motivo,
-    }));
-
-    descartados.appendChild(bloque);
-    descartados.classList.remove("oculto");
-  }
-
-  $("#btn-confirmar").disabled = false;
+function opciones() {
+  return {
+    estrategia: $('#estrategia').value,
+    objetivo: $('#objetivo').value,
+    prioritario: $('#prioritario').value.trim(),
+    viajes: $('#viajes').value
+  };
 }
-
 async function planear() {
+  invalidar();
+  $('#planear').disabled = true;
   try {
-    const plan = await Api.planear(
-      $("#estrategia").value,
-      $("#prioritario").value.trim(),
-      $("#objetivo").value
-    );
-    pintarPlan(plan);
-
-    if (plan.objetivo) {
-      avisar(plan.objetivo, "info", 5200);
-    }
-  } catch (error) {
-    vaciar($("#plan-lista"));
-    $("#btn-confirmar").disabled = true;
-    $("#m-cantidad").textContent = "0";
-    $("#m-peso").textContent = "0 kg";
-    $("#medidor-carga").style.width = "0%";
-    $("#medidor-carga").textContent = "—";
-    $("#medidor-centro").textContent = "—";
-    avisar(error.message, "error");
+    const config = opciones();
+    const p = await Api.enviar('/api/salidas/plan', 'POST', config);
+    configuracion = config;
+    $('#resumen').textContent = `${p.cantidad_viajes} mochilas · ${p.total_pedidos} pedidos · ${peso(p.peso_total)}`;
+    p.viajes.forEach(v => {
+      const c = elemento('details', {
+        clase: 'grupo-mochila',
+        open: true
+      });
+      c.append(elemento('summary', {
+        texto: `Mochila / viaje ${v.numero}: ${v.cantidad} pedidos · ${peso(v.peso_total)} / ${peso(v.capacidad)} · Libre: ${peso(v.disponible)}`
+      }));
+      const t = elemento('div');
+      tablaPedidos(t, v.pedidos);
+      c.append(t);
+      $('#plan').append(c);
+    });
+    p.no_asignados.forEach(p => $('#plan').append(elemento('p', {
+      texto: `Pendiente ${p.codigo}: ${p.motivo}`
+    })));
+    $('#confirmar').disabled = !p.total_pedidos;
+  } catch (e) {
+    avisar(e.message, 'error');
+  } finally {
+    $('#planear').disabled = false;
   }
 }
-
-/* ------------------------------------------------------------ comparacion */
-
-function pintarComparacion(datos) {
-  const contenedor = vaciar($("#comparacion"));
-
-  if (!datos.planes || datos.planes.length === 0) {
-    contenedor.appendChild(elemento("p", { clase: "tenue pequeno", texto: "Sin datos." }));
-    return;
-  }
-
-  const mejorCantidad = Math.max(...datos.planes.map((p) => p.cantidad));
-
-  for (const plan of datos.planes) {
-    const ganador = plan.cantidad === mejorCantidad;
-    const caja = elemento("div", { clase: `comparacion__item ${ganador ? "ganador" : ""}` });
-
-    const cabecera = elemento("div", { clase: "comparacion__cabecera" });
-    const insignias = elemento("div", { estilo: "display:flex;gap:7px;align-items:center;" });
-
-    if (ganador) {
-      insignias.appendChild(elemento("span", { clase: "insignia insignia--exito", texto: "Optimo" }));
-    }
-
-    insignias.appendChild(elemento("span", { clase: "diminuto tenue", texto: duracion(plan.milisegundos) }));
-    cabecera.append(
-      elemento("div", { clase: "comparacion__nombre", texto: plan.estrategia_etiqueta }),
-      insignias
-    );
-
-    const datosFila = elemento("div", { clase: "comparacion__datos" });
-    datosFila.append(
-      elemento("span", { texto: "Pedidos: ", clase: "diminuto tenue" }),
-      elemento("b", { texto: entero(plan.cantidad) }),
-      elemento("span", { texto: "Peso: ", clase: "diminuto tenue" }),
-      elemento("b", { texto: peso(plan.peso_total) }),
-      elemento("span", { texto: "Libre: ", clase: "diminuto tenue" }),
-      elemento("b", { texto: peso(plan.disponible) }),
-      elemento("span", { texto: "Ocupacion: ", clase: "diminuto tenue" }),
-      elemento("b", { texto: `${plan.ocupacion}%` })
-    );
-
-    caja.append(cabecera, datosFila);
-    contenedor.appendChild(caja);
-  }
-}
-
-async function cargarComparacion() {
+async function detalle(id) {
   try {
-    pintarComparacion(await Api.compararEstrategias($("#prioritario").value.trim()));
-  } catch (error) {
-    vaciar($("#comparacion"));
-  }
-}
-
-/* -------------------------------------------------------------- historial */
-
-async function cargarHistorial() {
-  const cuerpo = $("#cuerpo-salidas");
-
-  try {
-    const datos = await Api.historial();
-    $("#contador-salidas").textContent = entero(datos.salidas.length);
-    vaciar(cuerpo);
-
-    if (datos.salidas.length === 0) {
-      mostrarVacio(cuerpo, "🚚", "Sin salidas registradas", "Confirma un plan para empezar el historial.");
+    const s = await Api.enviar('/api/salidas/' + id);
+    const c = vaciar($('#detalle'));
+    c.append(elemento('h3', {
+      texto: `Detalle de salida #${s.id} · ${s.fecha}`
+    }));
+    if (!s.detalle.length) {
+      c.append(elemento('p', {
+        texto: 'Esta salida antigua no conserva el detalle de sus pedidos.'
+      }));
       return;
     }
-
-    for (const salida of datos.salidas) {
-      const fila = elemento("tr");
-      fila.append(
-        elemento("td", { clase: "mono", texto: `#${salida.id}` }),
-        elemento("td", { texto: salida.fecha }),
-        elemento("td", { texto: salida.estrategia }),
-        elemento("td", { clase: "numero", texto: entero(salida.cantidad) }),
-        elemento("td", { clase: "numero", texto: peso(salida.peso_total) }),
-        elemento("td", { clase: "numero", texto: `${salida.ocupacion}%` })
-      );
-      cuerpo.appendChild(fila);
+    for (let n = 1; n <= (s.viajes || 1); n++) {
+      const pedidos = s.detalle.filter(p => (p.viaje || 1) === n);
+      c.append(elemento('h4', {
+        texto: `Mochila / viaje ${n} · ${peso(pedidos.reduce((a,p)=>a+p.peso,0))}`
+      }));
+      const t = elemento('div');
+      tablaPedidos(t, pedidos.map(p => ({...p, estado: 'DESPACHADO'})));
+      c.append(t);
     }
-  } catch (error) {
-    avisar(error.message, "error");
+    c.scrollIntoView({
+      behavior: 'smooth'
+    });
+  } catch (e) {
+    avisar(e.message, 'error');
   }
 }
-
-/* ---------------------------------------------------------------- eventos */
-
-$("#btn-planear").addEventListener("click", planear);
-$("#btn-actualizar").addEventListener("click", planear);
-$("#btn-comparar").addEventListener("click", cargarComparacion);
-$("#objetivo").addEventListener("change", planear);
-
-alPresionarEnter($("#prioritario"), async () => {
-  await planear();
-  await cargarComparacion();
-});
-
-$("#btn-confirmar").addEventListener("click", async () => {
-  const boton = $("#btn-confirmar");
-  boton.disabled = true;
-  boton.textContent = "Despachando…";
-
+async function historial() {
   try {
-    const resultado = await Api.confirmar(
-      $("#estrategia").value,
-      $("#prioritario").value.trim(),
-      $("#objetivo").value
-    );
-
-    avisar(resultado.mensaje, "exito", 5200);
-
-    await planear();
-    await cargarComparacion();
-    await cargarHistorial();
-    refrescarLateral();
-  } catch (error) {
-    avisar(error.message, "error");
-  } finally {
-    boton.disabled = false;
-    boton.textContent = "Confirmar salida";
+    const d = await Api.historial();
+    const c = vaciar($('#historial'));
+    if (!d.salidas.length) c.append(elemento('p', {
+      texto: 'Todavía no hay salidas.'
+    }));
+    d.salidas.forEach(s => {
+      const fila = elemento('div', {
+        clase: 'plan-item'
+      });
+      fila.append(elemento('span', {
+        texto: `#${s.id} · ${s.fecha} · ${s.viajes||1} viajes · ${s.cantidad} pedidos · ${peso(s.peso_total)}`
+      }));
+      const b = elemento('button', {
+        clase: 'boton boton--pequeno',
+        texto: 'Ver detalle'
+      });
+      b.onclick = () => detalle(s.id);
+      fila.append(b);
+      c.append(fila);
+    });
+  } catch (e) {
+    avisar(e.message, 'error');
   }
-});
+}
+$('#planear').onclick = planear;
+['estrategia', 'objetivo', 'viajes', 'prioritario'].forEach(k => $('#' + k).onchange = invalidar);
+$('#confirmar').onclick = async () => {
+  if (!configuracion) return;
+  if (!confirmarAccion('¿Confirmar el despacho de todas las mochilas del plan?')) return;
+  $('#confirmar').disabled = true;
+  $('#planear').disabled = true;
+  try {
+    const r = await Api.enviar('/api/salidas/confirmar', 'POST', configuracion);
+    invalidar();
+    avisar(r.mensaje, 'exito');
+    await historial();
+    await detalle(r.salida.id);
+    await refrescarLateral();
+  } catch (e) {
+    avisar(e.message, 'error');
+    invalidar();
+  } finally {
+    $('#planear').disabled = false;
+  }
+};
+(async () => {
+  invalidar();
+  try {
+    const c = await cargarCatalogo();
+    llenarSelect($('#estrategia'), c.estrategias_reparto, 'MOCHILA_0_1');
+    llenarSelect($('#objetivo'), c.objetivos, 'CANTIDAD');
+    $('#prioritario').value = new URLSearchParams(location.search).get('prioritario') || '';
+    await historial();
+  } catch (e) {
+    avisar(e.message, 'error');
+  }
+})();
 </script>
 {% endblock %}

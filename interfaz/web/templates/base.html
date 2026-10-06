@@ -48,7 +48,7 @@
         <span class="nav__icono">➤</span> Preparar salida
       </a>
 
-      <div class="nav__seccion">Analisis</div>
+      <div class="nav__seccion">Análisis</div><a href="{{ url_for('pagina_analisis') }}" class="nav__enlace {{ 'activo' if activo == 'analisis' }}">⌕ Comparación y Búsqueda</a>
 
       <a href="{{ url_for('pagina_estadisticas') }}"
          class="nav__enlace {{ 'activo' if activo == 'estadisticas' }}">

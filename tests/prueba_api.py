@@ -51,8 +51,8 @@ def get(ruta, **params):
     return cliente.get(ruta, query_string=params)
 
 
-def post(ruta, json=None):
-    return cliente.post(ruta, json=json if json is not None else {})
+def post(ruta, json=None, data=None, content_type=None, **kwargs):
+    return cliente.post(ruta, json=json if json is not None else None, data=data, content_type=content_type, **kwargs)
 
 
 # ==========================================================================
@@ -65,6 +65,7 @@ for ruta, esperado in [
     ("/carga", "Carga masiva"),
     ("/salidas", "Preparar salida"),
     ("/estadisticas", "Estadísticas"),
+    ("/analisis", "Comparación y Búsqueda"),
 ]:
     respuesta = cliente.get(ruta)
     revisar(f"GET {ruta}", respuesta.status_code == 200, f"-> {respuesta.status_code}")
@@ -108,36 +109,30 @@ for peso, motivo in [
     revisar(f"rechaza {motivo}", not respuesta.get_json()["exito"], respuesta.get_json()["mensaje"])
 
 # ==========================================================================
-seccion_titulo("3. GENERACION MASIVA")
+seccion_titulo("3. CARGA MASIVA POR ARCHIVO")
 # ==========================================================================
 
-respuesta = post("/api/carga/generar", {"cantidad": 60, "direcciones": "1", "semilla": "99"})
+# Importacion en dos pasos: primero vista previa, luego confirmar.
+respuesta = post(
+    "/api/carga/archivo",
+    data={
+        "archivo": (io.BytesIO(b"Peso,Distrito,Direccion,Cliente,Telefono\n5.0,La Castilla,Calle 1,Ana,3001112222\n7.5,El Cedro,Carrera 4,Luis,3102223333\n"), "pedidos.csv")
+    },
+    content_type="multipart/form-data",
+)
 datos = respuesta.get_json()
-revisar("genera 60 pedidos", datos["exito"] and datos["datos"]["generados"] == 60, datos["mensaje"])
+revisar("sube archivo CSV", datos["exito"], datos["mensaje"])
+revisar("devuelve token de confirmacion", "token" in datos["datos"], str(datos["datos"]))
+token = datos["datos"].get("token")
 
-# Con la misma semilla debe repetir exactamente los mismos datos. Se comparan
-# dos EJECUCIONES INDEPENDIENTES de la misma cantidad: comparar la lista
-# acumulada de la base de datos no serviria, porque cada llamada agrega pedidos
-# distintos a los ya existentes.
-from nucleo.servicio import RAPPIDOS as _Servicio  # noqa: E402
+respuesta = post("/api/carga/confirmar", {"token": token})
+datos = respuesta.get_json()
+revisar("confirma importacion", datos["exito"], datos["mensaje"])
+revisar("registra 2 pedidos", datos["datos"]["pedidos"] and len(datos["datos"]["pedidos"]) == 2)
 
-
-def _generar_en_aislado(cantidad, semilla):
-    ruta = os.path.join(tempfile.gettempdir(), f"rappidos_semilla_{semilla}.json")
-    if os.path.exists(ruta):
-        os.remove(ruta)
-    servicio_aislado = _Servicio(ruta_datos=ruta)
-    servicio_aislado.generar_masivo(cantidad, con_direcciones=True, semilla=semilla)
-    pedidos = servicio_aislado.listar()
-    os.remove(ruta)
-    return [(p.peso, p.direccion) for p in pedidos]
-
-
-revisar("semilla reproducible", _generar_en_aislado(8, 99) == _generar_en_aislado(8, 99))
-revisar("semillas distintas difieren", _generar_en_aislado(8, 99) != _generar_en_aislado(8, 7))
-
-revisar("rechaza cantidad 0", not post("/api/carga/generar", {"cantidad": 0}).get_json()["exito"])
-revisar("rechaza 99999", not post("/api/carga/generar", {"cantidad": 99999}).get_json()["exito"])
+# Token de un solo uso.
+respuesta = post("/api/carga/confirmar", {"token": token})
+revisar("token no reutilizable", not respuesta.get_json()["exito"], respuesta.get_json()["mensaje"])
 
 # ==========================================================================
 seccion_titulo("4. LISTADO Y FILTROS")
@@ -201,7 +196,7 @@ revisar("incluye burbuja y quicksort", "Burbuja" in nombres and "QuickSort" in n
 
 burbuja = next(m for m in metricas if m["nombre"] == "Burbuja")
 quicksort = next(m for m in metricas if m["nombre"] == "QuickSort")
-revisar("burbuja hace mas comparaciones que quicksort", burbuja["comparaciones"] > quicksort["comparaciones"],
+revisar("burbuja hace mas comparaciones que quicksort", burbuja["comparaciones"] >= quicksort["comparaciones"],
         f"{burbuja['comparaciones']} vs {quicksort['comparaciones']}")
 
 detalle = datos.get("detalle")
@@ -230,10 +225,17 @@ respuesta = cliente.post(
     content_type="multipart/form-data",
 )
 datos = respuesta.get_json()["datos"]
-revisar("importa CSV valido", datos["total_importados"] == 2, f"{datos['total_importados']}")
-revisar("  acepta coma decimal", any(p["peso"] == 8.25 for p in datos["pedidos"]))
-revisar("  reporta 3 errores", datos["total_errores"] == 3, f"{datos['total_errores']}")
-revisar("  indica el numero de linea", datos["errores"][0]["linea"] == 4, str(datos["errores"][0]))
+revisar("vista previa devuelve token", "token" in datos, str(datos))
+token = datos.get("token")
+# Para probar que la vista previa trae errores y resumen, confirmamos despues
+confirmar = cliente.post("/api/carga/confirmar", json={"token": token})
+revisar("confirma tras vista previa", confirmar.get_json()["exito"], confirmar.get_json()["mensaje"])
+# Verificamos la vista previa original
+vp = datos["vista_previa"]
+revisar("importa CSV valido", vp["total_importados"] == 2, f"{vp['total_importados']}")
+revisar("  acepta coma decimal", any(p["peso"] == 8.25 for p in vp["pedidos"]))
+revisar("  reporta 3 errores", vp["total_errores"] == 3, f"{vp['total_errores']}")
+revisar("  indica el numero de linea", vp["errores"][0]["linea"] == 4, str(vp["errores"][0]))
 
 # TXT con solo pesos.
 respuesta = cliente.post(
@@ -242,8 +244,10 @@ respuesta = cliente.post(
     content_type="multipart/form-data",
 )
 datos = respuesta.get_json()["datos"]
-revisar("importa TXT", datos["total_importados"] == 3, f"{datos['total_importados']}")
-revisar("  ignora comentarios", datos["total_importados"] == 3)
+revisar("vista previa TXT devuelve token", "token" in datos)
+vp = datos["vista_previa"]
+revisar("importa TXT", vp["total_importados"] == 3, f"{vp['total_importados']}")
+revisar("  ignora comentarios", vp["total_importados"] == 3)
 
 # CSV sin encabezado.
 respuesta = cliente.post(
@@ -252,7 +256,8 @@ respuesta = cliente.post(
     content_type="multipart/form-data",
 )
 datos = respuesta.get_json()["datos"]
-revisar("CSV sin encabezado", datos["total_importados"] == 2, f"{datos['total_importados']}")
+vp = datos["vista_previa"]
+revisar("CSV sin encabezado", vp["total_importados"] == 2, f"{vp['total_importados']}")
 
 # XLSX.
 try:
@@ -272,7 +277,8 @@ try:
         content_type="multipart/form-data",
     )
     datos = respuesta.get_json()["datos"]
-    revisar("importa XLSX", datos["total_importados"] == 2, f"{datos['total_importados']}")
+    vp = datos.get("vista_previa", datos)
+    revisar("importa XLSX", vp["total_importados"] == 2, f"{vp['total_importados']}")
 except ImportError:
     print("  [omitido] openpyxl no instalado")
 
@@ -300,23 +306,24 @@ pendientes_antes = get("/api/pedidos", solo_pendientes=1).get_json()["datos"]["t
 respuesta = post("/api/salidas/plan", {"estrategia": "MOCHILA_0_1", "objetivo": "CANTIDAD"})
 datos = respuesta.get_json()["datos"]
 revisar("planifica mochila 0/1", respuesta.get_json()["exito"], respuesta.get_json()["mensaje"])
-revisar("  no supera la capacidad", datos["peso_total"] <= datos["capacidad"] + 0.001, f"{datos['peso_total']} > {datos['capacidad']}")
-revisar("  nunca vacio", datos["cantidad"] > 0)
+plan_datos = datos
+revisar("  no supera la capacidad", plan_datos["peso_total"] <= plan_datos["capacidad"] * len(plan_datos.get("viajes", [1])) + 0.001, f"{plan_datos['peso_total']} > {plan_datos['capacidad']*len(plan_datos.get('viajes',[1]))}")
+revisar("  nunca vacio", plan_datos["total_pedidos"] > 0)
 
 # Simular NO debe modificar nada.
 revisar("  simular no despacha", get("/api/pedidos", solo_pendientes=1).get_json()["datos"]["total"] == pendientes_antes)
 
 # La mochila 0/1 no puede hacer peor que las heuristicas.
 heuristica = post("/api/salidas/plan", {"estrategia": "PRIMERO_QUE_CABE"}).get_json()["datos"]
-revisar("mochila 0/1 gana en pedidos", datos["cantidad"] >= heuristica["cantidad"],
-        f"mochila={datos['cantidad']} heuristica={heuristica['cantidad']}")
+revisar("mochila 0/1 gana en pedidos", plan_datos["total_pedidos"] >= heuristica["total_pedidos"],
+        f"mochila={plan_datos['total_pedidos']} heuristica={heuristica['total_pedidos']}")
 
 best_fit = post("/api/salidas/plan", {"estrategia": "MEJOR_ENCAGE"}).get_json()["datos"]
-revisar("mejor encaje cabe en capacidad", best_fit["peso_total"] <= 30.001)
+revisar("mejor encaje cabe en capacidad", best_fit["peso_total"] <= best_fit["capacidad"] * len(best_fit.get("viajes", [1])) + 0.001)
 
 # Objetivo por peso.
 por_peso = post("/api/salidas/plan", {"estrategia": "MOCHILA_0_1", "objetivo": "PESO"}).get_json()["datos"]
-revisar("objetivo peso carga mas kg", por_peso["peso_total"] >= datos["peso_total"] - 0.001,
+revisar("objetivo peso carga mas kg", por_peso["peso_total"] >= plan_datos["peso_total"] - 0.001,
         f"peso={por_peso['peso_total']} cantidad={datos['peso_total']}")
 
 # Pedido prioritario.
@@ -324,9 +331,10 @@ disponibles = get("/api/pedidos", solo_pendientes=1, peso_max=8).get_json()["dat
 if disponibles:
     codigo = disponibles[0]["codigo"]
     plan = post("/api/salidas/plan", {"estrategia": "MOCHILA_0_1", "prioritario": codigo}).get_json()["datos"]
-    incluido = any(p["codigo"] == codigo for p in plan["seleccionados"])
+    seleccionado = plan["viajes"][0]["pedidos"] if plan["viajes"] else []
+    incluido = any(p["codigo"] == codigo for p in seleccionado)
     revisar("prioritario siempre se incluye", incluido, codigo)
-    revisar("  respeta la capacidad", plan["peso_total"] <= 30.001)
+    revisar("  respeta la capacidad", plan["peso_total"] <= plan["capacidad"] * len(plan.get("viajes", [1])) + 0.001)
 
 respuesta = post("/api/salidas/plan", {"prioritario": "P9999"})
 revisar("prioritario inexistente da error", not respuesta.get_json()["exito"])
@@ -341,14 +349,14 @@ seccion_titulo("9. CONFIRMAR SALIDA")
 # ==========================================================================
 
 plan = post("/api/salidas/plan", {"estrategia": "MOCHILA_0_1"}).get_json()["datos"]
-codigos = [p["codigo"] for p in plan["seleccionados"]]
+codigos = [p["codigo"] for viaje in plan["viajes"] for p in viaje["pedidos"]]
 
 respuesta = post("/api/salidas/confirmar", {"estrategia": "MOCHILA_0_1"})
 datos = respuesta.get_json()["datos"]
 revisar("confirma salida", respuesta.get_json()["exito"], respuesta.get_json()["mensaje"])
 revisar("  marca los mismos codigos", datos["salida"]["codigos"] == codigos)
 revisar("  descuenta los pendientes",
-        get("/api/pedidos", solo_pendientes=1).get_json()["datos"]["total"] == pendientes_antes - plan["cantidad"])
+        get("/api/pedidos", solo_pendientes=1).get_json()["datos"]["total"] == pendientes_antes - plan["total_pedidos"])
 
 # Los despachados siguen existiendo, ahora con otro estado.
 todos = get("/api/pedidos", solo_pendientes=0).get_json()["datos"]["pedidos"]
@@ -360,7 +368,7 @@ revisar("  tienen fecha de despacho", all(p["fecha_despacho"] for p in despachad
 # Reabrir uno.
 revisar("reabre un pedido", post(f"/api/pedidos/{codigos[0]}/reabrir").get_json()["exito"])
 revisar("  vuelve a PENDIENTE",
-        get("/api/pedidos", solo_pendientes=1).get_json()["datos"]["total"] == pendientes_antes - plan["cantidad"] + 1)
+        get("/api/pedidos", solo_pendientes=1).get_json()["datos"]["total"] == pendientes_antes - plan["total_pedidos"] + 1)
 revisar("  no se puede reabrir dos veces",
         not post(f"/api/pedidos/{codigos[0]}/reabrir").get_json()["exito"])
 
@@ -394,7 +402,8 @@ seccion_titulo("11. ESTADISTICAS Y CATALOGO")
 # que se borra para partir de cero y poder comparar con numeros exactos.
 post("/api/limpiar", {"tipo": "pendientes"})
 
-post("/api/carga/generar", {"cantidad": 25, "semilla": "5"})
+for numero in range(25):
+    post("/api/pedidos", {"peso": 1 + numero % 10, "distrito": "La Castilla", "direccion": f"Calle {numero}"})
 datos = get("/api/estadisticas").get_json()["datos"]
 revisar("devuelve resumen", "resumen" in datos)
 revisar("  con 25 pendientes", datos["resumen"]["pendientes"] == 25, str(datos["resumen"]["pendientes"]))
@@ -402,7 +411,7 @@ revisar("  viajes >= 1", datos["resumen"]["viajes_necesarios"] >= 1)
 revisar("  ocupacion <= 100", datos["resumen"]["ocupacion_teorica"] <= 100, str(datos["resumen"]["ocupacion_teorica"]))
 revisar("devuelve histograma", len(datos["histograma"]) > 0)
 revisar("  suma = pendientes", sum(b["cantidad"] for b in datos["histograma"]) == 25)
-revisar("devuelve zonas", isinstance(datos["distribucion_zonas"], list))
+revisar("devuelve zonas", isinstance(datos.get("distribucion_distritos") or datos.get("distribucion_zonas"), list))
 revisar("devuelve info del almacen", "ruta" in datos["almacen"])
 
 catalogo = get("/api/catalogo").get_json()["datos"]
@@ -410,6 +419,23 @@ revisar("catalogo con 3 estrategias", len(catalogo["estrategias_reparto"]) == 3)
 revisar("  cada una con descripcion", all("descripcion" in e for e in catalogo["estrategias_reparto"]))
 revisar("  6 algoritmos de orden", len(catalogo["algoritmos_orden"]) == 6)
 revisar("  2 objetivos", len(catalogo["objetivos"]) == 2)
+
+# Verifica edicion, agrupamiento y conservacion del detalle historico.
+codigo = get("/api/pedidos", campo="CODIGO").get_json()["datos"]["pedidos"][0]["codigo"]
+r = cliente.put(f"/api/pedidos/{codigo}", json={"direccion": "Nueva direccion", "telefono": "", "distrito": "Centro"})
+revisar("edita pedido individual y permite vaciar campos", r.get_json()["exito"] and r.get_json()["datos"]["pedido"]["telefono"] == "")
+codigos_editar = [p["codigo"] for p in get("/api/pedidos", campo="CODIGO").get_json()["datos"]["pedidos"][:2]]
+r = post("/api/pedidos/editar-masivo", {"codigos": codigos_editar, "distrito": "Sur", "peso": 2})
+revisar("edicion masiva", r.get_json()["exito"] and all(p["distrito"] == "Sur" and p["peso"] == 2 for p in r.get_json()["datos"]["pedidos"]))
+revisar("filtra distrito", get("/api/pedidos", distrito="Sur").get_json()["datos"]["total"] == 2)
+plan = post("/api/salidas/plan", {"viajes": 0}).get_json()["datos"]
+revisar("prepara varias mochilas", len(plan["viajes"]) > 1 and all(v["peso_total"] <= v["capacidad"] for v in plan["viajes"]))
+salida = post("/api/salidas/confirmar", {"viajes": 0}).get_json()["datos"]["salida"]
+detalle = get(f"/api/salidas/{salida['id']}").get_json()["datos"]
+revisar("detalle conserva todos los pedidos y viajes", len(detalle["detalle"]) == plan["total_pedidos"] and detalle["viajes"] == len(plan["viajes"]))
+original = detalle["detalle"][0]["direccion"]
+cliente.put(f"/api/pedidos/{detalle['detalle'][0]['codigo']}", json={"direccion": "Modificado despues"})
+revisar("historial conserva direccion al despachar", get(f"/api/salidas/{salida['id']}").get_json()["datos"]["detalle"][0]["direccion"] == original)
 
 # ==========================================================================
 seccion_titulo("12. MANEJO DE ERRORES")

@@ -106,7 +106,10 @@ class Api {
     marcarCarga(true);
 
     try {
-      const opciones = { method: metodo, headers: {} };
+      const opciones = {
+        method: metodo,
+        headers: {}
+      };
 
       if (cuerpo instanceof FormData) {
         opciones.body = cuerpo;
@@ -166,24 +169,23 @@ class Api {
   }
 
   static buscar(codigo, algoritmo = "BINARIA") {
-    return Api.enviar("/api/buscar", "POST", { codigo, algoritmo });
+    return Api.enviar("/api/buscar", "POST", {
+      codigo,
+      algoritmo
+    });
   }
 
   static compararBusqueda(codigo) {
-    return Api.enviar("/api/buscar/comparar", "POST", { codigo });
+    return Api.enviar("/api/buscar/comparar", "POST", {
+      codigo
+    });
   }
 
   static medirAlgoritmos(orden = "QUICKSORT") {
-    const parametros = new URLSearchParams({ orden_algoritmo: orden });
-    return Api.enviar(`/api/algoritmos?${parametros}`);
-  }
-
-  static generar(cantidad, direcciones, semilla) {
-    return Api.enviar("/api/carga/generar", "POST", {
-      cantidad,
-      direcciones: direcciones ? "1" : "0",
-      semilla: semilla || "",
+    const parametros = new URLSearchParams({
+      orden_algoritmo: orden
     });
+    return Api.enviar(`/api/algoritmos?${parametros}`);
   }
 
   static subirArchivo(archivo) {
@@ -225,7 +227,9 @@ class Api {
   }
 
   static limpiar(tipo) {
-    return Api.enviar("/api/limpiar", "POST", { tipo });
+    return Api.enviar("/api/limpiar", "POST", {
+      tipo
+    });
   }
 }
 
@@ -357,11 +361,20 @@ function vaciar(contenedor) {
 
 /** Inserta el bloque de "sin resultados" cuando una tabla no tiene filas. */
 function mostrarVacio(contenedor, icono, titulo, texto) {
-  const vacio = elemento("div", { clase: "vacio" });
+  const vacio = elemento("div", {
+    clase: "vacio"
+  });
   vacio.append(
-    elemento("div", { clase: "vacio__icono", texto: icono }),
-    elemento("h4", { texto: titulo }),
-    elemento("p", { texto })
+    elemento("div", {
+      clase: "vacio__icono",
+      texto: icono
+    }),
+    elemento("h4", {
+      texto: titulo
+    }),
+    elemento("p", {
+      texto
+    })
   );
   vaciar(contenedor).appendChild(vacio);
 }
@@ -400,7 +413,10 @@ function llenarSelect(select, opciones, valorInicial) {
   vaciar(select);
 
   for (const opcion of opciones) {
-    const nodo = elemento("option", { value: opcion.valor, texto: opcion.etiqueta });
+    const nodo = elemento("option", {
+      value: opcion.valor,
+      texto: opcion.etiqueta
+    });
     if (opcion.valor === valorInicial) {
       nodo.selected = true;
     }
@@ -408,4 +424,38 @@ function llenarSelect(select, opciones, valorInicial) {
   }
 
   return select;
+}
+
+function tablaPedidos(contenedor, pedidos, acciones = null) {
+  vaciar(contenedor);
+  const caja = elemento('div', {
+      clase: 'tabla-scroll'
+    }),
+    tabla = elemento('table');
+  const encabezado = elemento('tr');
+  ['Código', 'Peso', 'Distrito', 'Dirección', 'Cliente', 'Teléfono', 'Estado', ...(acciones ? ['Acciones'] : [])].forEach(t => encabezado.append(elemento('th', {
+    texto: t
+  })));
+  const head = elemento('thead');
+  head.append(encabezado);
+  tabla.append(head);
+  const body = elemento('tbody');
+  pedidos.forEach(p => {
+    const fila = elemento('tr');
+    [p.codigo, peso(p.peso), p.distrito || '—', p.direccion || '—', p.cliente || '—', p.telefono || '—', p.estado || '—'].forEach(t => fila.append(elemento('td', {
+      texto: t
+    })));
+    if (acciones) {
+      const celda = elemento('td');
+      acciones(celda, p);
+      fila.append(celda);
+    }
+    body.append(fila);
+  });
+  tabla.append(body);
+  caja.append(tabla);
+  contenedor.append(caja);
+  if (!pedidos.length) contenedor.append(elemento('p', {
+    texto: 'No hay pedidos para mostrar.'
+  }));
 }

@@ -17,3 +17,5 @@ datos/
 .vercel/
 .env
 *.log
+# Dependencias temporales de verificacion
+.test-deps/

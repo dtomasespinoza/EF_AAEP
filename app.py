@@ -25,13 +25,20 @@ from __future__ import annotations
 
 import io
 import os
+import uuid
 from pathlib import Path
+from typing import Any, Dict
 
 from flask import Flask, Response, jsonify, render_template, request, send_file
 
 from nucleo import RAPPIDOS
 from nucleo.importador import plantilla_csv
-from nucleo.modelos import CAPACIDAD_VEHICULO_KG, EstrategiaOrden, EstrategiaReparto
+from nucleo.modelos import (
+    CAPACIDAD_VEHICULO_KG,
+    CampoOrden,
+    EstrategiaOrden,
+    EstrategiaReparto,
+)
 from nucleo.reparto import ObjetivoMochila
 from nucleo.serializador import respuesta, serializar
 
@@ -46,6 +53,20 @@ app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024
 app.config["JSON_SORT_KEYS"] = False
 
 servicio = RAPPIDOS()
+
+#: Importaciones que el usuario todavia NO ha confirmado.
+#:
+#: Es lo que hace posible el flujo en dos pasos que pidio el equipo: al subir
+#: el archivo se devuelve una vista previa con un token, y nada se guarda
+#: hasta que se confirma.
+#:
+#: El token es NECESARIO y no un adorno. Si el navegador mandara la lista de
+#: pedidos a confirmar, cualquiera con curl podria confirmar una carga
+#: arbitraria, o confirmarla dos veces. Guardando la vista previa en el
+#: servidor, el cliente solo puede decir "confirma el token X": el contenido
+#: real lo decide el nucleo. El token se borra al confirmarlo, de modo que
+#: un token no se puede reutilizar para cargar dos veces el mismo archivo.
+importaciones_pendientes: Dict[str, Any] = {}
 
 
 # --------------------------------------------------------------------------
@@ -126,6 +147,26 @@ def _objetivo() -> str:
     return valor
 
 
+def _campo_orden() -> CampoOrden:
+    """Interpreta por que campo se quiere ordenar la tabla de pedidos.
+
+    Un valor desconocido cae en PESO, que es el orden por defecto del
+    sistema y el unico que aplica un algoritmo de los del curso.
+    """
+    try:
+        return CampoOrden(_texto("campo", "PESO").upper())
+    except ValueError:
+        return CampoOrden.PESO
+
+
+def _viajes() -> int:
+    """Cantidad de viajes del plan. `0` significa "los que hagan falta"."""
+    try:
+        return max(int(_texto("viajes", "0") or 0), 0)
+    except ValueError:
+        return 0
+
+
 # ==========================================================================
 # PAGINAS
 # ==========================================================================
@@ -145,14 +186,26 @@ def pagina_pedidos():
 
 @app.route("/carga")
 def pagina_carga():
-    """Carga masiva: generar al azar o subir archivo."""
+    """Carga masiva por archivo, con vista previa y confirmacion."""
     return render_template("carga.html", activo="carga", capacidad=CAPACIDAD_VEHICULO_KG)
 
 
 @app.route("/salidas")
 def pagina_salidas():
-    """Planificacion de salida y comparacion de estrategias."""
+    """Planificacion de uno o varios viajes y comparacion de estrategias."""
     return render_template("salidas.html", activo="salidas", capacidad=CAPACIDAD_VEHICULO_KG)
+
+
+@app.route("/analisis")
+def pagina_analisis():
+    """Analisis: comparacion de algoritmos y busqueda de pedidos.
+
+    Antes estas herramientas vivian repartidas entre el menu de Pedidos y el
+    de Salidas. El equipo pidio reunirlas bajo un mismo apartado de
+    Analisis, asi que la comparacion y la busqueda se cargan aqui con un
+    enlace directo desde los menus donde estaban.
+    """
+    return render_template("analisis.html", activo="analisis", capacidad=CAPACIDAD_VEHICULO_KG)
 
 
 @app.route("/estadisticas")
@@ -168,9 +221,15 @@ def pagina_estadisticas():
 
 @app.route("/api/pedidos", methods=["GET"])
 def api_listar():
-    """Lista pedidos con filtros de peso, estado y ordenamiento."""
+    """Lista pedidos con filtros de peso y distrito, y orden opcional.
+
+    `campo` decide POR QUE se ordena y `orden_algoritmo` decide COMO, que no
+    es lo mismo: los algoritmos de ordenamiento del curso solo tienen sentido
+    sobre el peso. Pedir ordenarlos por codigo con QuickSort no significaria
+    nada, asi que en ese caso el nucleo usa el comparador nativo.
+    """
     try:
-        estrategia = EstrategiaOrden(_texto("orden", "").upper())
+        estrategia = EstrategiaOrden(_texto("orden_algoritmo", "").upper())
     except ValueError:
         estrategia = None
 
@@ -180,6 +239,8 @@ def api_listar():
         solo_pendientes=_texto("solo_pendientes", "1") not in ("0", "false", "no", ""),
         orden=estrategia,
         descendente=_texto("descendente", "0") in ("1", "true", "si", "sí"),
+        campo=_campo_orden(),
+        distrito=_texto("distrito") or None,
     )
 
     return _json({
@@ -196,10 +257,65 @@ def api_registrar():
         direccion=_texto("direccion"),
         cliente=_texto("cliente"),
         telefono=_texto("telefono"),
+        distrito=_texto("distrito"),
     )
 
     if not resultado.ok:
         return _error(resultado.mensaje)
+
+    return _json({"pedido": serializar(resultado.datos)})
+
+
+@app.route("/api/pedidos/editar-masivo", methods=["POST"])
+def api_editar_masivo():
+    """Corrige varios pedidos en una sola operacion.
+
+    El equipo pidio edicion masiva porque corregir 40 pedidos a mano era
+    inviable. Los codigos llegan en `codigos`, que puede venir como una lista
+    JSON o como texto separado por comas: el formulario lo rellena JavaScript
+    con un array, pero permitir el texto hace que la ruta tambien se pueda
+    probar con curl sin construir JSON.
+    """
+    codigos = _dato("codigos") or []
+
+    if isinstance(codigos, str):
+        codigos = [parte.strip() for parte in codigos.split(",") if parte.strip()]
+
+    resultado = servicio.editar_masivo(
+        codigos=codigos,
+        peso=_dato("peso"),
+        distrito=_texto("distrito") or None,
+        cliente=_texto("cliente") or None,
+    )
+
+    if not resultado.ok:
+        return _error(resultado.mensaje)
+
+    return _json({
+        "mensaje": resultado.mensaje,
+        "pedidos": [p.a_dict() for p in resultado.datos or []],
+    })
+
+
+@app.route("/api/pedidos/<codigo>", methods=["PUT", "POST"])
+def api_editar(codigo: str):
+    """Corrige un pedido ya registrado.
+
+    Acepta `PUT` y `POST` porque el metodo HTTP correcto para una edicion es
+    PUT, pero algunos clientes y formularios antiguos solo saben hacer POST.
+    Admitir los dos evita un 405 que no explicaria nada al usuario.
+    """
+    resultado = servicio.editar(
+        codigo=codigo,
+        peso=_dato("peso"),
+        direccion=_dato("direccion"),
+        cliente=_dato("cliente"),
+        telefono=_dato("telefono"),
+        distrito=_dato("distrito"),
+    )
+
+    if not resultado.ok:
+        return _error(resultado.mensaje, 404 if "No existe" in resultado.mensaje else 400)
 
     return _json({"pedido": serializar(resultado.datos)})
 
@@ -244,7 +360,8 @@ def api_priorizar(codigo: str):
     if not encontrado.pendiente:
         return _error(f"El pedido {encontrado.codigo} ya fue despachado.")
 
-    plan = servicio.planear(
+    plan = servicio.planear_carga(
+        viajes=1,
         estrategia=_estrategia_reparto(),
         prioritario=encontrado.codigo,
         objetivo=_objetivo(),
@@ -302,34 +419,15 @@ def api_algoritmos():
 # ==========================================================================
 
 
-@app.route("/api/carga/generar", methods=["POST"])
-def api_generar():
-    """Genera pedidos aleatorios con direcciones."""
-    try:
-        cantidad = int(float(_texto("cantidad", "50")))
-    except ValueError:
-        return _error("La cantidad debe ser un numero.")
-
-    semilla = _texto("semilla")
-
-    resultado = servicio.generar_masivo(
-        cantidad,
-        con_direcciones=_texto("direcciones", "1") not in ("0", "false", "no"),
-        semilla=int(semilla) if semilla else None,
-    )
-
-    if not resultado.ok:
-        return _error(resultado.mensaje)
-
-    return _json({
-        "generados": len(resultado.datos or []),
-        "mensaje": resultado.mensaje,
-    })
-
-
 @app.route("/api/carga/archivo", methods=["POST"])
 def api_importar():
-    """Importa pedidos desde un archivo CSV, TXT o XLSX subido."""
+    """Analiza un archivo CSV, TXT o XLSX y devuelve una VISTA PREVIA.
+
+    No registra nada. La respuesta incluye un `token` que hay que mandar a
+    `/api/carga/confirmar` para que los pedidos se guarden de verdad. Ese
+    paso en dos tiempos es lo que pidio el equipo: subir un archivo ya no
+    mete pedidos en el sistema sin que nadie los revise antes.
+    """
     archivo = request.files.get("archivo")
 
     if archivo is None or not archivo.filename:
@@ -345,7 +443,45 @@ def api_importar():
     if not resultado.ok:
         return _error(resultado.mensaje)
 
-    return _json(serializar(resultado.datos))
+    token = uuid.uuid4().hex
+    importaciones_pendientes[token] = resultado.datos
+
+    return _json({
+        "token": token,
+        "mensaje": resultado.mensaje,
+        "vista_previa": serializar(resultado.datos),
+    })
+
+
+@app.route("/api/carga/confirmar", methods=["POST"])
+def api_confirmar_importacion():
+    """Registra los pedidos de una vista previa ya revisada.
+
+    El token se busca en el diccionario del servidor y se BORRA despues, tanto
+    si la confirmacion tuvo exito como si fallo. Borrarlo siempre es lo que
+    impide confirmar dos veces la misma subida y duplicar los pedidos.
+    """
+    token = _texto("token")
+
+    if not token:
+        return _error("Falta el token de confirmacion.")
+
+    vista_previa = importaciones_pendientes.pop(token, None)
+
+    if vista_previa is None:
+        return _error(
+            "Esa importacion ya se confirmo o expiro. Vuelve a subir el archivo.", 404
+        )
+
+    resultado = servicio.confirmar_importacion(vista_previa)
+
+    if not resultado.ok:
+        return _error(resultado.mensaje)
+
+    return _json({
+        "mensaje": resultado.mensaje,
+        "pedidos": [p.a_dict() for p in getattr(vista_previa, "pedidos", [])],
+    })
 
 
 @app.route("/api/carga/plantilla", methods=["GET"])
@@ -366,23 +502,18 @@ def api_plantilla():
 
 @app.route("/api/salidas/plan", methods=["POST"])
 def api_plan():
-    """Simula un plan de carga SIN despachar nada."""
-    resultado = servicio.planear(
+    """Simula un plan de carga SIN despachar nada.
+
+    Permite planear uno o varios viajes: `viajes=0` significa "todos los que
+    hagan falta". La respuesta es un PlanCarga completo, con detalle de cada
+    viaje y de lo que no asigno.
+    """
+    resultado = servicio.planear_carga(
+        viajes=_viajes(),
         estrategia=_estrategia_reparto(),
         prioritario=_texto("prioritario") or None,
         objetivo=_objetivo(),
     )
-
-    if not resultado.ok:
-        return _error(resultado.mensaje)
-
-    return _json(serializar(resultado.datos))
-
-
-@app.route("/api/salidas/estrategias", methods=["GET"])
-def api_estrategias():
-    """Compara las tres estrategias de reparto sobre los mismos datos."""
-    resultado = servicio.comparar_estrategias(_texto("prioritario") or None)
 
     if not resultado.ok:
         return _error(resultado.mensaje)
@@ -392,15 +523,15 @@ def api_estrategias():
 
 @app.route("/api/salidas/confirmar", methods=["POST"])
 def api_confirmar():
-    """Confirma el plan: marca los pedidos como despachados.
+    """Confirma el plan (uno o varios viajes) y despacha sus pedidos.
 
-    El plan se vuelve a calcular en el SERVIDOR en lugar de confiar en los
-    codigos que envia el navegador. Es una decision de seguridad: si se
-    aceptara la lista del cliente, alguien podria manipularla a mano y
-    despachar pedidos que nunca estuvieron en el plan. El servidor es la
-    unica fuente de verdad.
+    Se vuelve a planificar para que el servidor sea la unica fuente de
+    verdad: nunca se confia en la lista que envie el navegador. Esa medida
+    evita que alguien manipule el cliente y despache pedidos al margen del
+    plan.
     """
-    plan = servicio.planear(
+    plan = servicio.planear_carga(
+        viajes=_viajes(),
         estrategia=_estrategia_reparto(),
         prioritario=_texto("prioritario") or None,
         objetivo=_objetivo(),
@@ -409,7 +540,7 @@ def api_confirmar():
     if not plan.ok:
         return _error(plan.mensaje)
 
-    resultado = servicio.confirmar_salida(plan.datos)
+    resultado = servicio.confirmar_carga(plan.datos)
 
     if not resultado.ok:
         return _error(resultado.mensaje)
@@ -422,23 +553,60 @@ def api_confirmar():
 
 @app.route("/api/salidas/historial", methods=["GET"])
 def api_historial():
-    """Historial de salidas ya confirmadas."""
-    return _json({
-        "salidas": [
-            {
-                "id": salida.id,
-                "fecha": salida.fecha,
-                "cantidad": salida.cantidad,
-                "peso_total": salida.peso_total,
-                "capacidad": salida.capacidad,
-                "ocupacion": round(salida.peso_total / salida.capacidad * 100, 1) if salida.capacidad else 0.0,
-                "estrategia": salida.estrategia,
-                "prioritario": salida.prioritario,
-                "codigos": salida.codigos,
-            }
-            for salida in servicio.historial()
-        ]
-    })
+    """Historial de salidas ya confirmadas.
+
+    Cada salida conserva `detalle` (pedido por pedido, con distrito, viaje y
+    datos originales). Ademas de la lista, se devuelve el detalle completo
+    para mostrarlo cuando el usuario seleccione una salida en la web.
+    """
+    salidas = []
+    for salida in servicio.historial():
+        datos = salida.a_dict() if hasattr(salida, "a_dict") else {
+            "id": salida.id,
+            "fecha": salida.fecha,
+            "cantidad": salida.cantidad,
+            "peso_total": salida.peso_total,
+            "capacidad": salida.capacidad,
+            "viajes": getattr(salida, "viajes", 1),
+            "estrategia": salida.estrategia,
+            "prioritario": salida.prioritario,
+            "codigos": salida.codigos,
+            "detalle": getattr(salida, "detalle", []),
+        }
+        if "ocupacion" not in datos:
+            viajes = max(int(datos.get("viajes") or 1), 1)
+            capacidad_total = datos.get("capacidad", CAPACIDAD_VEHICULO_KG) * viajes
+            datos["ocupacion"] = round(
+                datos.get("peso_total", 0.0) / capacidad_total * 100, 1
+            ) if capacidad_total > 0 else 0.0
+        salidas.append(datos)
+
+    return _json({"salidas": salidas})
+
+
+@app.route("/api/salidas/<int:identificador>", methods=["GET"])
+def api_detalle_salida(identificador: int):
+    """Devuelve el detalle de una salida concreta.
+
+    Esto cumple lo que pidio el equipo: despues de confirmar varias
+    mochilas, se debe poder mostrar la carga de cada mochila. La respuesta
+    trae el detalle completo (cada pedido con su viaje, distrito, direccion,
+    cliente y telefono).
+    """
+    resultado = servicio.detalle_salida(identificador)
+
+    if not resultado.ok:
+        return _error(resultado.mensaje, 404)
+
+    return _json(resultado.datos)
+
+
+@app.route("/api/salidas/estrategias", methods=["GET"])
+def api_comparar_estrategias():
+    resultado = servicio.comparar_estrategias(_texto("prioritario") or None)
+    if not resultado.ok:
+        return _error(resultado.mensaje)
+    return _json(serializar(resultado.datos))
 
 
 # ==========================================================================

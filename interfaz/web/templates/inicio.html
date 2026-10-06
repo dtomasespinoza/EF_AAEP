@@ -54,8 +54,12 @@
       </div>
 
       <div class="campo">
+        <label class="campo__etiqueta" for="distrito">Distrito</label>
+        <input type="text" id="distrito" name="distrito" placeholder="La Castilla">
+      </div>
+      <div class="campo">
         <label class="campo__etiqueta" for="direccion">Direccion de entrega</label>
-        <input type="text" id="direccion" name="direccion" placeholder="Calle 10 #3-22, La Castilla">
+        <input type="text" id="direccion" name="direccion" placeholder="Calle 10 #3-22">
       </div>
 
       <div class="campo-linea">
@@ -76,8 +80,7 @@
 
     <div class="tarjeta__pie">
       Sin pedidos a mano? Usa
-      <a href="{{ url_for('pagina_carga') }}">la carga masiva</a> para generar
-      pedidos aleatorios o subir un archivo.
+      <a href="{{ url_for('pagina_carga') }}">la carga masiva</a> para subir un archivo de pedidos.
     </div>
   </div>
 
@@ -199,7 +202,7 @@ function pintarProximos(pedidos) {
       contenedor,
       "📭",
       "Sin pedidos pendientes",
-      "Registra un pedido o genera varios desde la carga masiva."
+      "Registra un pedido o importa un archivo desde la carga masiva."
     );
     return;
   }
@@ -297,6 +300,7 @@ $("#form-registro").addEventListener("submit", async (evento) => {
     const resultado = await Api.registrar({
       peso: $("#peso").value,
       direccion: $("#direccion").value,
+      distrito: $("#distrito").value,
       cliente: $("#cliente").value,
       telefono: $("#telefono").value,
     });

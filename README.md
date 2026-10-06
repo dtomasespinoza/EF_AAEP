@@ -104,18 +104,25 @@ las dos llaman a `nucleo.servicio.RAPPIDOS`. También es lo que permite que
 
 ## 5. Qué hace el sistema
 
-- **Registrar pedidos** con peso, dirección, cliente y teléfono. El código
+- **Registrar pedidos** con peso, distrito, dirección, cliente y teléfono. El código
   (`P001`, `P002`, …) se genera solo y el contador se guarda en disco, así que
   no se repite al reiniciar.
-- **Carga masiva**: generar pedidos aleatorios con direcciones colombianas o
-  importar desde `.csv`, `.txt` y `.xlsx`. Las filas inválidas se reportan una
-  por una con su número de línea, y las válidas se cargan igual.
-- **Filtrar y ordenar** por peso, con cualquiera de los seis algoritmos.
+- **Carga masiva**: importar desde `.csv`, `.txt` y `.xlsx`. Primero se muestra
+  una vista previa; los pedidos se guardan al pulsar **Confirmar pedidos**.
+  Las filas inválidas se reportan con su número de línea. La vista previa
+  puede ordenarse por distrito. La web ya no ofrece generación aleatoria.
+- **Filtrar y ordenar** por código, peso o distrito, en ambos sentidos.
+- **Editar pedidos** individualmente (peso, distrito, dirección, cliente y
+  teléfono) o seleccionar varios para cambiar peso, distrito o cliente.
 - **Buscar** un pedido por código con búsqueda binaria o lineal.
-- **Planear la salida** de tres maneras y **compararlas** sobre los mismos
-  datos antes de decidir.
+- **Preparar salida**: muestra varias mochilas, cada una con sus pedidos y
+  peso. El máximo de viajes en `0` prepara todos los necesarios.
+- **Análisis → Comparación y Búsqueda** reúne búsquedas y comparaciones de
+  ordenamiento y reparto.
 - **Confirmar la salida**: los pedidos quedan `DESPACHADO` con su fecha, no se
-  borran, y la salida queda en el historial.
+  borran, y la salida queda en el historial. **Ver detalle** muestra los
+  pedidos de cada viaje tal como salieron. Las salidas antiguas sin detalle
+  no pueden reconstruirse.
 - **Estadísticas**: totales, peso pendiente, rango, viajes necesarios,
   histograma de pesos y zonas más pedidas.
 
@@ -221,21 +228,24 @@ Todas las rutas devuelven `{exito, mensaje, datos}`.
 
 | Método | Ruta | Qué hace |
 |---|---|---|
-| GET | `/api/pedidos` | Lista con filtros `peso_min`, `peso_max`, `solo_pendientes`, `orden`, `descendente` |
+| GET | `/api/pedidos` | Lista con filtros `peso_min`, `peso_max`, `solo_pendientes`, `campo`, `distrito`, `orden_algoritmo`, `descendente` |
 | POST | `/api/pedidos` | Registra un pedido |
+| PUT | `/api/pedidos/<codigo>` | Edita un pedido |
+| POST | `/api/pedidos/editar-masivo` | Edita los pedidos seleccionados |
 | DELETE | `/api/pedidos/<codigo>` | Elimina un pedido |
 | POST | `/api/pedidos/<codigo>/reabrir` | Devuelve un despachado a pendientes |
 | POST | `/api/pedidos/<codigo>/priorizar` | Planea forzando ese pedido como prioritario |
 | POST | `/api/buscar` | Busca por código (`algoritmo`: `BINARIA` o `LINEAL`) |
 | POST | `/api/buscar/comparar` | Ejecuta ambas búsquedas y contrasta el coste |
 | GET | `/api/algoritmos` | Mide los 6 ordenamientos |
-| POST | `/api/carga/generar` | Genera pedidos aleatorios |
-| POST | `/api/carga/archivo` | Importa CSV / TXT / XLSX |
+| POST | `/api/carga/archivo` | Vista previa CSV / TXT / XLSX y token |
+| POST | `/api/carga/confirmar` | Confirma los pedidos del token |
 | GET | `/api/carga/plantilla` | Descarga un CSV de ejemplo |
 | POST | `/api/salidas/plan` | Simula una salida **sin** despachar |
 | GET | `/api/salidas/estrategias` | Compara las 3 estrategias |
 | POST | `/api/salidas/confirmar` | Confirma y despacha |
 | GET | `/api/salidas/historial` | Historial de salidas |
+| GET | `/api/salidas/<id>` | Detalle de cada viaje y sus pedidos |
 | GET | `/api/estadisticas` | Métricas del panel |
 | POST | `/api/limpiar` | Vacía pendientes o todo |
 | GET | `/api/catalogo` | Enums del núcleo, para construir los menús |

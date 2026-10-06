@@ -66,6 +66,41 @@ class EstrategiaOrden(Enum):
         }[self]
 
 
+class CampoOrden(Enum):
+    """CAMPO por el que se ordena el listado de pedidos.
+
+    Antes solo se podia ordenar por peso, porque el unico dato numerico era
+    ese. Al separar el distrito de la direccion aparece un segundo criterio
+    util, y el codigo es el tercero porque es el orden natural de lectura de
+    una lista de pedidos.
+
+    El peso sigue siendo el unico campo con ELECCION DE ALGORITMO: los otros
+    dos se ordenan con el comparador nativo. La razon es que el conteo y las
+    cubetas dependen de que los valores sean enteros dentro de un rango
+    acotado, y el codigo ("P001") o el distrito ("La Castilla") no cumplen
+    esa precondicion. Forzarles un algoritmo incompatible seria un error de
+    diseño, no una optimizacion.
+    """
+
+    CODIGO = "CODIGO"
+    PESO = "PESO"
+    DISTRITO = "DISTRITO"
+
+    @property
+    def etiqueta(self) -> str:
+        return {
+            CampoOrden.CODIGO: "Codigo",
+            CampoOrden.PESO: "Peso",
+            CampoOrden.DISTRITO: "Distrito",
+        }[self]
+
+    @property
+    def admite_algoritmo(self) -> bool:
+        """Solo el peso se ordena con los algoritmos propios del curso."""
+        return self is CampoOrden.PESO
+
+
+
 class EstrategiaReparto(Enum):
     """Estrategias para elegir que pedidos caben en el vehiculo."""
 
@@ -119,6 +154,7 @@ class Pedido:
     direccion: str = ""
     cliente: str = ""
     telefono: str = ""
+    distrito: str = ""
     prioridad: bool = False
     estado: EstadoPedido = EstadoPedido.PENDIENTE
     fecha_registro: str = ""
@@ -147,16 +183,47 @@ class Pedido:
             direccion=str(datos.get("direccion", "")),
             cliente=str(datos.get("cliente", "")),
             telefono=str(datos.get("telefono", "")),
+            distrito=str(datos.get("distrito", "")),
             prioridad=bool(datos.get("prioridad", False)),
             estado=EstadoPedido.desde_texto(datos.get("estado", "PENDIENTE")),
             fecha_registro=str(datos.get("fecha_registro", "")),
             fecha_despacho=str(datos.get("fecha_despacho", "")),
         )
 
+    @property
+    def distrito_efectivo(self) -> str:
+        """Distrito con respaldo para los datos anteriores al campo.
+
+        Los pedidos guardados antes de separar el distrito no tienen esta
+        columna. En vez de mostrarlos todos como "Sin distrito", se les
+        deduce del texto que sigue a la ultima coma de la direccion, que es
+        justo donde el barrio estaba escrito. Asi la agrupacion por distrito
+        funciona desde el primer dia sin obligar a reimportar nada.
+        """
+        if self.distrito.strip():
+            return self.distrito.strip()
+
+        if "," in self.direccion:
+            return self.direccion.rsplit(",", 1)[-1].strip()
+
+        return ""
+
 
 @dataclass
 class Salida:
-    """Registro de una salida confirmada. Es el historial del sistema."""
+    """Registro de una salida confirmada. Es el historial del sistema.
+
+    Guarda los codigos de los pedidos despachados Y una COPIA de sus datos
+    (peso, distrito, direccion y cliente) en `detalle`.
+
+    Existe esa copia por un motivo concreto: sin ella, el historial solo
+    permite saber CUANTOS pedidos salieron y cuanto pesaban, pero no que
+    llevo cada uno. Reconstruir el detalletendria que buscar los codigos en
+    el almacen, y un pedido puede haberse editado o eliminado despues, con
+    lo que el historial mostraria datos que ya no corresponden a lo que
+    realmente salio ese dia. Guardar la copia al confirmar es lo que hace
+    que el historial sea una fuente de verdad y no una referencia fragile.
+    """
 
     id: int
     codigos: List[str] = field(default_factory=list)
@@ -166,6 +233,54 @@ class Salida:
     estrategia: str = ""
     prioritario: Optional[str] = None
     fecha: str = ""
+    detalle: List[Dict[str, Any]] = field(default_factory=list)
+    #: Cantidad de viajes que confirmo esta misma operacion. Un plan
+    #: multi-viaje despacha varios viajes de una vez, asi que una salida
+    #: puede corresponder a mas de un viaje.
+    viajes: int = 1
+
+    @property
+    def ocupacion(self) -> float:
+        if self.capacidad <= 0:
+            return 0.0
+        return round(self.peso_total / (self.capacidad * max(self.viajes, 1)) * 100, 2)
+
+    def a_dict(self) -> Dict[str, Any]:
+        return {
+            "id": self.id,
+            "codigos": list(self.codigos),
+            "peso_total": self.peso_total,
+            "capacidad": self.capacidad,
+            "cantidad": self.cantidad,
+            "estrategia": self.estrategia,
+            "prioritario": self.prioritario,
+            "fecha": self.fecha,
+            "detalle": list(self.detalle),
+            "viajes": self.viajes,
+            "ocupacion": self.ocupacion,
+        }
+
+    @classmethod
+    def desde_dict(cls, datos: Dict[str, Any], identificador: int = 0) -> "Salida":
+        """Reconstruye una salida desde el JSON.
+
+        Los campos `detalle` y `viajes` no existen en los archivos guardados
+        antes de esta version, asi que se usan valores por defecto. Sin eso,
+        una salida antigua impediria arrancar la aplicacion al no encontrar
+        las claves.
+        """
+        return cls(
+            id=int(datos.get("id", identificador)),
+            codigos=[str(codigo) for codigo in datos.get("codigos", [])],
+            peso_total=float(datos.get("peso_total", 0.0)),
+            capacidad=float(datos.get("capacidad", CAPACIDAD_VEHICULO_KG)),
+            cantidad=int(datos.get("cantidad", 0)),
+            estrategia=str(datos.get("estrategia", "")),
+            prioritario=datos.get("prioritario"),
+            fecha=str(datos.get("fecha", "")),
+            detalle=list(datos.get("detalle", []) or []),
+            viajes=int(datos.get("viajes", 1)),
+        )
 
 
 @dataclass

@@ -31,11 +31,11 @@ from .modelos import PESO_MAXIMO_KG, PESO_MINIMO_KG, Pedido
 #: Palabras clave para reconocer cada columna, en español y en inglés.
 #: La lista de un campo se prueba con `in`, no con igualdad, para que
 #: "Distrito de entrega" se reconozca igual que "distrito".
-CLAVES_PESO = ("peso", "peso_kg", "kg", "weight", "peso_envio")
+CLAVES_PESO = ("peso", "peso_kg", "kg", "kilo", "weight", "peso_envio")
 CLAVES_DISTRITO = ("distrito", "barrio", "localidad", "zona", "sector", "district")
 CLAVES_DIRECCION = ("direccion", "address", "destino", "domicilio", "dir")
 CLAVES_CLIENTE = ("cliente", "nombre", "customer", "name", "destinatario")
-CLAVES_TELEFONO = ("telefono", "phone", "celular", "movil", "contacto")
+CLAVES_TELEFONO = ("telefono", "phone", "celular", "movil", "contacto", "numero")
 
 #: Separadores aceptados en archivos CSV.
 DELIMITADORES = (";", ",", "\t", "|")
@@ -304,7 +304,7 @@ def _procesar_tabla(
 
     # Si hay encabezado pero ninguna columna reconocible, se informa: casi
     # siempre significa que el archivo tiene otro formato.
-    if tiene_encabezado and mapa_columnas is None:
+    if tiene_encabezado and (not mapa_columnas or "peso" not in mapa_columnas):
         resultado.errores.append(
             ErrorImportacion(
                 1,
@@ -312,7 +312,7 @@ def _procesar_tabla(
                 "encabezado incluya una columna 'Peso'.",
             )
         )
-        mapa_columnas = {}
+        return resultado
 
     resultado.filas_leidas = len(cuerpo)
     indice_codigo = 0

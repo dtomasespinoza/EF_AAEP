@@ -1,4 +1,3 @@
-
 {% extends "base.html" %}
 
 {% block titulo %}
@@ -16,7 +15,7 @@ Herramientas de análisis de los algoritmos del curso.
 {% block contenido %}
 <div class="rejilla rejilla-2 mb-2">    <div class="tarjeta">
       <div class="tarjeta__titulo">
-<h3>🔍 Buscar por codigo</h3>
+<h3> Buscar por codigo</h3>
 </div>
 
       <div class="campo mb-2">
@@ -39,9 +38,7 @@ Herramientas de análisis de los algoritmos del curso.
       <div class="boton-grupo">
         <button class="boton boton--primario crece" id="btn-buscar">Buscar</button>
         <button class="boton boton--fantasma" id="btn-comparar"
-                title="Ejecuta las dos busquedas y contrasta el coste">
-          ⚖️
-        </button>
+                title="Ejecuta las dos busquedas y contrasta el coste">Comparar</button>
       </div>
 
       <div id="resultado-busqueda" class="mt-2">
@@ -50,7 +47,7 @@ Herramientas de análisis de los algoritmos del curso.
 
     <div class="tarjeta">
       <div class="tarjeta__titulo">
-<h3>⚖️ Comparar busquedas</h3>
+<h3> Comparar busquedas</h3>
 </div>
       <p class="pequeno" style="margin-bottom:14px">
         Ejecuta la busqueda lineal y la binaria sobre el mismo codigo y
@@ -76,7 +73,7 @@ Herramientas de análisis de los algoritmos del curso.
   <div id="detalle-orden"></div>
 </div>
 <div class="tarjeta mt-2">
-<h3>Comparar reparto</h3>
+<h3>Comparar reparto</h3><p>Compara una mochila de un mismo distrito con cada algoritmo. Los otros distritos se atienden en cargas separadas.</p>
 <button id="comparar-reparto" class="boton boton--primario">Comparar estrategias</button>
 <div id="reparto">
 </div>
@@ -243,18 +240,11 @@ async function compararBusquedas() {
   }
 }
 
-/* ------------------------------------------------------------- algoritmos */
-
-/**
- * Dibuja una barra por algoritmo, con la longitud proporcional al numero de
- * comparaciones. El mas costoso ocupa toda la barra, y el mas rapido queda
- * en proportion, que es lo que hace visible la diferencia.
- */
 function pintarAlgoritmos(metricas) {
   const contenedor = vaciar($("#barras-algoritmos"));
 
   if (metricas.length === 0) {
-    mostrarVacio(contenedor, "📊", "Sin datos que medir", "Registra pedidos pendientes primero.");
+    mostrarVacio(contenedor, "", "Sin datos que medir", "Registra pedidos pendientes primero.");
     return;
   }
 
@@ -319,7 +309,6 @@ async function medirAlgoritmos() {
     avisar(error.message, "error");
   }
 }
-
 
 $('#btn-buscar').onclick = buscar;
 $('#btn-comparar').onclick = () => {

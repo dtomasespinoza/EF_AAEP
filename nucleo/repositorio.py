@@ -1,28 +1,4 @@
-"""
- nucleo.repositorio
- ==================
-
- Almacenamiento de los pedidos y del historial de salidas.
-
- La version original de consola mantenia todo en variables globales en
- memoria, lo que hacia que al cerrar el programa se perdiera todo y que el
- contador de codigos volviera a 1. Aqui los datos viven en un diccionario
- y se respaldan en un archivo JSON.
-
- Dos detalles de ingenieria que conviene conocer:
-
- 1. ESCRITURA ATOMICA. Se escribe primero en un archivo temporal y luego
-    se renombra con `os.replace`. Si el programa se cierra a mitad de una
-    escritura, el archivo original queda intacto en vez de corrupto. Es el
-    patron "write to temp, then rename" y es la forma correcta de guardar
-    estado en disco.
-
- 2. CONTADOR PERSISTIDO. El codigo del proximo pedido se guarda en el JSON.
-    Si no, al recargar se reiniciaria en P001 y se pisarian pedidos ya
-    existentes.
-
- NUCLEO PURO en cuanto a la logica: no imprime, solo devuelve resultados.
-"""
+"""Lectura y guardado de pedidos y salidas."""
 
 from __future__ import annotations
 
@@ -36,23 +12,14 @@ from .modelos import EstadoPedido, Pedido, Salida
 
 VERSION_ARCHIVO = 1
 
-# Carpeta del proyecto, deducida de la ubicacion de este archivo. Se usa para
-# que los datos SIEMPRE se guarden en el mismo lugar, sin importar desde que
-# carpeta se ejecute el programa: con una ruta relativa como "datos/pedidos.json"
-# bastaba con lanzar `python app.py` desde otro directorio para crear una base
-# de datos nueva y perder la anterior.
 RAIZ_PROYECTO = Path(__file__).resolve().parent.parent
 ARCHIVO_POR_DEFECTO = RAIZ_PROYECTO / "datos" / "pedidos.json"
-
 
 class Repositorio:
     """Persistencia en archivo JSON de pedidos e historial."""
 
     def __init__(self, ruta: Optional[str] = None) -> None:
-        # Orden de prioridad: ruta explicita, variable de entorno, y por
-        # ultimo la ruta por defecto del proyecto.
-        # La variable de entorno sirve para alejar los datos en pruebas o en
-        # una instalacion real sin tocar el codigo.
+
         self.ruta = Path(
             ruta or os.environ.get("RAPPIDOS_ARCHIVO") or ARCHIVO_POR_DEFECTO
         )
@@ -61,15 +28,8 @@ class Repositorio:
         self.contador = 1
         self._cargar()
 
-    # ---------------------------------------------------------------- carga
-
     def _cargar(self) -> None:
-        """Lee el archivo si existe. Un archivo danio no tumba la app.
-
-        Se captura la excepcion y se arranca con estado vacio: para una
-        herramienta de coursework es preferible perder los datos a no
-        poder arrancar.
-        """
+        """Lee el archivo si existe. Un archivo danio no tumba la app."""
         if not self.ruta.exists():
             return
 
@@ -93,12 +53,7 @@ class Repositorio:
         self.contador = int(datos.get("contador", self._siguiente_contador()))
 
     def _siguiente_contador(self) -> int:
-        """Deduce el contador a partir del mayor codigo existente.
-
-        Es la red de seguridad por si el JSON fue editado a mano y no tiene
-        el campo `contador`: revisa todos los codigos y continua desde el
-        mas alto, en vez de volver a P001.
-        """
+        """Deduce el contador a partir del mayor codigo existente."""
         if not self.pedidos:
             return 1
 
@@ -111,8 +66,6 @@ class Repositorio:
 
         return mayor + 1
 
-    # --------------------------------------------------------------- guardado
-
     def guardar(self) -> None:
         """Persiste el estado completo de forma atomica."""
         self.ruta.parent.mkdir(parents=True, exist_ok=True)
@@ -121,10 +74,7 @@ class Repositorio:
             "version": VERSION_ARCHIVO,
             "contador": self.contador,
             "pedidos": {codigo: pedido.a_dict() for codigo, pedido in self.pedidos.items()},
-            # Se guarda `a_dict()` para no repetir la lista de campos en dos
-            # sitios. `ocupacion` se quita porque es un valor DERIVADO: si se
-            # guardara, podria desincronizarse del peso si someday cambiara
-            # la formula, y el archivo acabaria mintiendo.
+
             "salidas": [
                 {
                     clave: valor
@@ -149,8 +99,6 @@ class Repositorio:
                 os.remove(ruta_temporal)
             raise
 
-    # ---------------------------------------------------------------- lectura
-
     def listar(self, solo_pendientes: bool = False) -> List[Pedido]:
         """Devuelve los pedidos, opcionalmente solo los pendientes."""
         if solo_pendientes:
@@ -159,10 +107,7 @@ class Repositorio:
         return list(self.pedidos.values())
 
     def obtener(self, codigo: str) -> Optional[Pedido]:
-        """Devuelve el pedido con ese codigo, o None si no existe.
-
-        Normaliza a mayusculas porque el usuario puede escribir "p001".
-        """
+        """Devuelve el pedido con ese codigo, o None si no existe."""
         return self.pedidos.get(str(codigo).strip().upper())
 
     @property
@@ -174,8 +119,6 @@ class Repositorio:
         codigo = self.siguiente_codigo
         self.contador += 1
         return codigo
-
-    # ---------------------------------------------------------------- escritura
 
     def agregar(self, pedido: Pedido) -> Pedido:
         self.pedidos[pedido.codigo] = pedido

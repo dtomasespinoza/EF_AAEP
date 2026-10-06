@@ -1,11 +1,4 @@
-"""
-Prueba de extremo a extremo de la API web de RAPPIDOS.
-
-Levanta la aplicacion con el cliente de pruebas de Flask, que simula las
-peticiones HTTP sin abrir un puerto, y recorre todos los casos de uso: alta
-de pedidos, carga masiva, busquedas, algoritmos, plan de salida, confirmacion
-y borrado. Cada seccion imprime OK o el error encontrado.
-"""
+"""Modulo prueba_api."""
 
 import io
 import os
@@ -15,8 +8,6 @@ import tempfile
 RAIZ = r"C:\DESARROLLO\PYTHON\ProyectoFinal\ProyectoFinal"
 sys.path.insert(0, RAIZ)
 
-# Se cambia el archivo de datos ANTES de importar app, para que las pruebas
-# no toquen los pedidos reales del desarrollador.
 ARCHIVO_PRUEBA = os.path.join(tempfile.gettempdir(), "rappidos_test_api.json")
 if os.path.exists(ARCHIVO_PRUEBA):
     os.remove(ARCHIVO_PRUEBA)
@@ -32,7 +23,6 @@ cliente = modulo_app.app.test_client()
 fallos = []
 seccion = ""
 
-
 def revisar(nombre, condicion, detalle=""):
     if condicion:
         print(f"  [OK]   {nombre}")
@@ -40,24 +30,18 @@ def revisar(nombre, condicion, detalle=""):
         print(f"  [FALLA] {nombre} {detalle}")
         fallos.append(nombre)
 
-
 def seccion_titulo(titulo):
     global seccion
     seccion = titulo
     print(f"\n{titulo}")
 
-
 def get(ruta, **params):
     return cliente.get(ruta, query_string=params)
-
 
 def post(ruta, json=None, data=None, content_type=None, **kwargs):
     return cliente.post(ruta, json=json if json is not None else None, data=data, content_type=content_type, **kwargs)
 
-
-# ==========================================================================
 seccion_titulo("1. PAGINAS HTML")
-# ==========================================================================
 
 for ruta, esperado in [
     ("/", "Panel de control"),
@@ -74,30 +58,24 @@ for ruta, esperado in [
         esperado in respuesta.get_data(as_text=True),
     )
 
-# La ruta inexistente debe responder 404 CON la pagina de error, no 500.
 respuesta = cliente.get("/ruta-inexistente")
 revisar("GET /ruta-inexistente", respuesta.status_code == 404, f"-> {respuesta.status_code}")
 revisar("  contenido 'No encontramos'", "No encontramos" in respuesta.get_data(as_text=True))
 
-# El CSS y el JS deben servirse sin error.
 for activo in ("css/estilos.css", "js/app.js"):
     respuesta = cliente.get(f"/static/{activo}")
     revisar(f"GET /static/{activo}", respuesta.status_code == 200, f"-> {respuesta.status_code}")
 
-# ==========================================================================
 seccion_titulo("2. ALTA DE PEDIDOS")
-# ==========================================================================
 
 respuesta = post("/api/pedidos", {"peso": 5.5, "direccion": "Calle 10 #3-22", "cliente": "Ana"})
 datos = respuesta.get_json()
 revisar("POST /api/pedidos", datos["exito"] and datos["datos"]["pedido"]["codigo"] == "P001", datos["mensaje"])
 revisar("  peso guardado", datos["datos"]["pedido"]["peso"] == 5.5)
 
-# Acepta coma decimal, como lo escribe el usuario en un teclado español.
 respuesta = post("/api/pedidos", {"peso": "2,75"})
 revisar("acepta coma decimal", respuesta.get_json()["exito"] and respuesta.get_json()["datos"]["pedido"]["peso"] == 2.75)
 
-# Validaciones del dominio.
 for peso, motivo in [
     (0, "peso cero"),
     (-5, "peso negativo"),
@@ -108,11 +86,8 @@ for peso, motivo in [
     respuesta = post("/api/pedidos", {"peso": peso})
     revisar(f"rechaza {motivo}", not respuesta.get_json()["exito"], respuesta.get_json()["mensaje"])
 
-# ==========================================================================
 seccion_titulo("3. CARGA MASIVA POR ARCHIVO")
-# ==========================================================================
 
-# Importacion en dos pasos: primero vista previa, luego confirmar.
 respuesta = post(
     "/api/carga/archivo",
     data={
@@ -130,13 +105,10 @@ datos = respuesta.get_json()
 revisar("confirma importacion", datos["exito"], datos["mensaje"])
 revisar("registra 2 pedidos", datos["datos"]["pedidos"] and len(datos["datos"]["pedidos"]) == 2)
 
-# Token de un solo uso.
 respuesta = post("/api/carga/confirmar", {"token": token})
 revisar("token no reutilizable", not respuesta.get_json()["exito"], respuesta.get_json()["mensaje"])
 
-# ==========================================================================
 seccion_titulo("4. LISTADO Y FILTROS")
-# ==========================================================================
 
 todos = get("/api/pedidos", solo_pendientes=1).get_json()["datos"]
 revisar("lista pedidos", todos["total"] > 0, f"total={todos['total']}")
@@ -153,15 +125,12 @@ revisar("orden descendente correcto", all(descendente[i]["peso"] >= descendente[
 filtrados = get("/api/pedidos", peso_min=5, peso_max=10).get_json()["datos"]["pedidos"]
 revisar("filtro por rango de peso", all(5 <= p["peso"] <= 10 for p in filtrados), f"{len(filtrados)} resultados")
 
-# Cada algoritmo debe producir el MISMO conjunto ordenado.
 for algoritmo in ["BURBUJA", "INSERCION", "QUICKSORT", "CONTEO", "CUBETAS", "NATIVO"]:
     resultado = get("/api/pedidos", orden=algoritmo).get_json()["datos"]["pedidos"]
     pesos_alg = [p["peso"] for p in resultado]
     revisar(f"{algoritmo} ordena ascendente", pesos_alg == sorted(pesos_alg), f"{pesos_alg[:4]}")
 
-# ==========================================================================
 seccion_titulo("5. BUSQUEDA")
-# ==========================================================================
 
 primero = get("/api/pedidos").get_json()["datos"]["pedidos"][0]["codigo"]
 
@@ -181,9 +150,7 @@ comparacion = post("/api/buscar/comparar", {"codigo": primero}).get_json()["dato
 revisar("comparacion trae ambos algoritmos", "lineal" in comparacion and "binaria" in comparacion)
 revisar("binaria no usa mas comparaciones", comparacion["binaria"]["comparaciones"] <= comparacion["lineal"]["comparaciones"] + 20)
 
-# ==========================================================================
 seccion_titulo("6. ALGORITMOS DE ORDENAMIENTO")
-# ==========================================================================
 
 respuesta = get("/api/algoritmos")
 datos = respuesta.get_json()["datos"]
@@ -206,11 +173,8 @@ if detalle:
     pesos_detalle = [p["peso"] for p in detalle["pedidos"]]
     revisar("detalle ordenado ascendente", pesos_detalle == sorted(pesos_detalle), f"{pesos_detalle[:4]}")
 
-# ==========================================================================
 seccion_titulo("7. CARGA DESDE ARCHIVOS")
-# ==========================================================================
 
-# CSV con punto y coma, con un peso con coma decimal.
 csv = (
     "Peso;Direccion;Cliente;Telefono\n"
     "3.5;Calle 1 #2-3;Camila;3001112233\n"
@@ -227,17 +191,16 @@ respuesta = cliente.post(
 datos = respuesta.get_json()["datos"]
 revisar("vista previa devuelve token", "token" in datos, str(datos))
 token = datos.get("token")
-# Para probar que la vista previa trae errores y resumen, confirmamos despues
+
 confirmar = cliente.post("/api/carga/confirmar", json={"token": token})
 revisar("confirma tras vista previa", confirmar.get_json()["exito"], confirmar.get_json()["mensaje"])
-# Verificamos la vista previa original
+
 vp = datos["vista_previa"]
 revisar("importa CSV valido", vp["total_importados"] == 2, f"{vp['total_importados']}")
 revisar("  acepta coma decimal", any(p["peso"] == 8.25 for p in vp["pedidos"]))
 revisar("  reporta 3 errores", vp["total_errores"] == 3, f"{vp['total_errores']}")
 revisar("  indica el numero de linea", vp["errores"][0]["linea"] == 4, str(vp["errores"][0]))
 
-# TXT con solo pesos.
 respuesta = cliente.post(
     "/api/carga/archivo",
     data={"archivo": (io.BytesIO(b"2.5\n7.75\n# comentario\n1.2\n"), "pesos.txt")},
@@ -249,7 +212,6 @@ vp = datos["vista_previa"]
 revisar("importa TXT", vp["total_importados"] == 3, f"{vp['total_importados']}")
 revisar("  ignora comentarios", vp["total_importados"] == 3)
 
-# CSV sin encabezado.
 respuesta = cliente.post(
     "/api/carga/archivo",
     data={"archivo": (io.BytesIO(b"4.5,Calle 9 #1-2,Luis\n12,Carrera 7 #3-4,Sara\n"), "sin.csv")},
@@ -259,7 +221,6 @@ datos = respuesta.get_json()["datos"]
 vp = datos["vista_previa"]
 revisar("CSV sin encabezado", vp["total_importados"] == 2, f"{vp['total_importados']}")
 
-# XLSX.
 try:
     from openpyxl import Workbook
 
@@ -282,7 +243,6 @@ try:
 except ImportError:
     print("  [omitido] openpyxl no instalado")
 
-# Formato no soportado.
 respuesta = cliente.post(
     "/api/carga/archivo",
     data={"archivo": (io.BytesIO(b"contenido"), "documento.pdf")},
@@ -290,16 +250,12 @@ respuesta = cliente.post(
 )
 revisar("rechaza formato no soportado", not respuesta.get_json()["exito"])
 
-# Sin archivo.
 revisar("rechaza peticion sin archivo", not cliente.post("/api/carga/archivo").get_json()["exito"])
 
-# Plantilla descargable.
 respuesta = cliente.get("/api/carga/plantilla")
 revisar("plantilla CSV descargable", respuesta.status_code == 200 and b"Peso" in respuesta.data)
 
-# ==========================================================================
 seccion_titulo("8. PLAN DE SALIDA")
-# ==========================================================================
 
 pendientes_antes = get("/api/pedidos", solo_pendientes=1).get_json()["datos"]["total"]
 
@@ -310,10 +266,8 @@ plan_datos = datos
 revisar("  no supera la capacidad", plan_datos["peso_total"] <= plan_datos["capacidad"] * len(plan_datos.get("viajes", [1])) + 0.001, f"{plan_datos['peso_total']} > {plan_datos['capacidad']*len(plan_datos.get('viajes',[1]))}")
 revisar("  nunca vacio", plan_datos["total_pedidos"] > 0)
 
-# Simular NO debe modificar nada.
 revisar("  simular no despacha", get("/api/pedidos", solo_pendientes=1).get_json()["datos"]["total"] == pendientes_antes)
 
-# La mochila 0/1 no puede hacer peor que las heuristicas.
 heuristica = post("/api/salidas/plan", {"estrategia": "PRIMERO_QUE_CABE"}).get_json()["datos"]
 revisar("mochila 0/1 gana en pedidos", plan_datos["total_pedidos"] >= heuristica["total_pedidos"],
         f"mochila={plan_datos['total_pedidos']} heuristica={heuristica['total_pedidos']}")
@@ -321,12 +275,10 @@ revisar("mochila 0/1 gana en pedidos", plan_datos["total_pedidos"] >= heuristica
 best_fit = post("/api/salidas/plan", {"estrategia": "MEJOR_ENCAGE"}).get_json()["datos"]
 revisar("mejor encaje cabe en capacidad", best_fit["peso_total"] <= best_fit["capacidad"] * len(best_fit.get("viajes", [1])) + 0.001)
 
-# Objetivo por peso.
 por_peso = post("/api/salidas/plan", {"estrategia": "MOCHILA_0_1", "objetivo": "PESO"}).get_json()["datos"]
 revisar("objetivo peso carga mas kg", por_peso["peso_total"] >= plan_datos["peso_total"] - 0.001,
         f"peso={por_peso['peso_total']} cantidad={datos['peso_total']}")
 
-# Pedido prioritario.
 disponibles = get("/api/pedidos", solo_pendientes=1, peso_max=8).get_json()["datos"]["pedidos"]
 if disponibles:
     codigo = disponibles[0]["codigo"]
@@ -339,14 +291,11 @@ if disponibles:
 respuesta = post("/api/salidas/plan", {"prioritario": "P9999"})
 revisar("prioritario inexistente da error", not respuesta.get_json()["exito"])
 
-# Comparar estrategias.
 comparacion = get("/api/salidas/estrategias").get_json()["datos"]
 revisar("compara 3 estrategias", len(comparacion["planes"]) == 3, f"{len(comparacion['planes'])}")
 revisar("  indica la mejor", comparacion["mejor"] in [p["estrategia"] for p in comparacion["planes"]])
 
-# ==========================================================================
 seccion_titulo("9. CONFIRMAR SALIDA")
-# ==========================================================================
 
 plan = post("/api/salidas/plan", {"estrategia": "MOCHILA_0_1"}).get_json()["datos"]
 codigos = [p["codigo"] for viaje in plan["viajes"] for p in viaje["pedidos"]]
@@ -358,28 +307,23 @@ revisar("  marca los mismos codigos", datos["salida"]["codigos"] == codigos)
 revisar("  descuenta los pendientes",
         get("/api/pedidos", solo_pendientes=1).get_json()["datos"]["total"] == pendientes_antes - plan["total_pedidos"])
 
-# Los despachados siguen existiendo, ahora con otro estado.
 todos = get("/api/pedidos", solo_pendientes=0).get_json()["datos"]["pedidos"]
 despachados = [p for p in todos if p["codigo"] in codigos]
 revisar("los despachados se conservan", len(despachados) == len(codigos))
 revisar("  quedan marcados DESPACHADO", all(p["estado"] == "DESPACHADO" for p in despachados))
 revisar("  tienen fecha de despacho", all(p["fecha_despacho"] for p in despachados))
 
-# Reabrir uno.
 revisar("reabre un pedido", post(f"/api/pedidos/{codigos[0]}/reabrir").get_json()["exito"])
 revisar("  vuelve a PENDIENTE",
         get("/api/pedidos", solo_pendientes=1).get_json()["datos"]["total"] == pendientes_antes - plan["total_pedidos"] + 1)
 revisar("  no se puede reabrir dos veces",
         not post(f"/api/pedidos/{codigos[0]}/reabrir").get_json()["exito"])
 
-# Historial.
 historial = get("/api/salidas/historial").get_json()["datos"]["salidas"]
 revisar("historial registra la salida", len(historial) >= 1)
 revisar("  con peso y ocupacion", all("ocupacion" in s for s in historial))
 
-# ==========================================================================
 seccion_titulo("10. ELIMINAR Y LIMPIAR")
-# ==========================================================================
 
 revisar("elimina existente", cliente.delete(f"/api/pedidos/{codigos[0]}").get_json()["exito"])
 revisar("  eliminar dos veces da 404", cliente.delete(f"/api/pedidos/{codigos[0]}").status_code == 404)
@@ -394,12 +338,8 @@ revisar("limpia todo", respuesta.get_json()["exito"])
 revisar("  queda vacio", get("/api/pedidos", solo_pendientes=0).get_json()["datos"]["total"] == 0)
 revisar("  reinicia el contador", post("/api/pedidos", {"peso": 1}).get_json()["datos"]["pedido"]["codigo"] == "P001")
 
-# ==========================================================================
 seccion_titulo("11. ESTADISTICAS Y CATALOGO")
-# ==========================================================================
 
-# La seccion anterior dejo un pedido de prueba (el que creo el contador), asi
-# que se borra para partir de cero y poder comparar con numeros exactos.
 post("/api/limpiar", {"tipo": "pendientes"})
 
 for numero in range(25):
@@ -420,7 +360,6 @@ revisar("  cada una con descripcion", all("descripcion" in e for e in catalogo["
 revisar("  6 algoritmos de orden", len(catalogo["algoritmos_orden"]) == 6)
 revisar("  2 objetivos", len(catalogo["objetivos"]) == 2)
 
-# Verifica edicion, agrupamiento y conservacion del detalle historico.
 codigo = get("/api/pedidos", campo="CODIGO").get_json()["datos"]["pedidos"][0]["codigo"]
 r = cliente.put(f"/api/pedidos/{codigo}", json={"direccion": "Nueva direccion", "telefono": "", "distrito": "Centro"})
 revisar("edita pedido individual y permite vaciar campos", r.get_json()["exito"] and r.get_json()["datos"]["pedido"]["telefono"] == "")
@@ -437,9 +376,7 @@ original = detalle["detalle"][0]["direccion"]
 cliente.put(f"/api/pedidos/{detalle['detalle'][0]['codigo']}", json={"direccion": "Modificado despues"})
 revisar("historial conserva direccion al despachar", get(f"/api/salidas/{salida['id']}").get_json()["datos"]["detalle"][0]["direccion"] == original)
 
-# ==========================================================================
 seccion_titulo("12. MANEJO DE ERRORES")
-# ==========================================================================
 
 revisar("API inexistente da JSON 404",
         get("/api/no-existe").status_code == 404 and get("/api/no-existe").is_json)
@@ -450,7 +387,6 @@ revisar("el sobre de respuesta es uniforme",
         all(set(get(ruta, **params).get_json()) == {"exito", "mensaje", "datos"}
             for ruta, params in [("/api/pedidos", {}), ("/api/estadisticas", {}), ("/api/catalogo", {})]))
 
-# ==========================================================================
 print("\n" + "=" * 58)
 if fallos:
     print(f"  {len(fallos)} PRUEBA(S) FALLARON:")

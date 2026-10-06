@@ -115,7 +115,9 @@ las dos llaman a `nucleo.servicio.RAPPIDOS`. También es lo que permite que
 - **Editar pedidos** individualmente (peso, distrito, dirección, cliente y
   teléfono) o seleccionar varios para cambiar peso, distrito o cliente.
 - **Buscar** un pedido por código con búsqueda binaria o lineal.
-- **Preparar salida**: muestra varias mochilas, cada una con sus pedidos y
+- **Preparar salida**: agrupa primero por distrito; cada mochila contiene
+  pedidos de un solo distrito. Luego aplica el algoritmo a ese grupo, respetando
+  los 30 kg. Los pedidos sin distrito se preparan individualmente. Cada mochila muestra sus pedidos y
   peso. El máximo de viajes en `0` prepara todos los necesarios.
 - **Análisis → Comparación y Búsqueda** reúne búsquedas y comparaciones de
   ordenamiento y reparto.

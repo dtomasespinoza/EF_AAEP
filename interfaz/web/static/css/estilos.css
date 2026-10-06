@@ -1,24 +1,3 @@
-/* ==========================================================================
-   RAPPIDOS - Sistema de pedidos
-   Hoja de estilos unica de la aplicacion.
-
-   Organizacion del archivo:
-     1. Variables y reinicio
-     2. Tipografia y utilidades
-     3. Estructura: barra lateral y contenido
-     4. Componentes: botones, campos, tarjetas
-     5. Tablas, insignias y estados vacios
-     6. Paginas: inicio, pedidos, carga, salidas, estadisticas
-
-   Se usa CSS puro con variables personalizadas: no hay framework, asi que
-   no hay dependencias externas que instalar y el estilo se entiende
-   completo leyendo este archivo.
-   ========================================================================== */
-
-/* ==========================================================================
-   1. VARIABLES Y REINICIO
-   ========================================================================== */
-
 :root {
   --fondo: #0b1020;
   --fondo-alto: #121a33;
@@ -84,7 +63,6 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* Un contenedor invisible y fino para las notificaciones. */
 #notificaciones {
   position: fixed;
   top: 22px;
@@ -96,10 +74,6 @@ body {
   max-width: min(430px, calc(100vw - 44px));
   pointer-events: none;
 }
-
-/* ==========================================================================
-   2. TIPOGRAFIA Y UTILIDADES
-   ========================================================================== */
 
 h1, h2, h3, h4 {
   font-weight: 650;
@@ -147,17 +121,11 @@ a:hover { color: var(--texto); }
   to   { opacity: 1; transform: translateY(0); }
 }
 
-/* ==========================================================================
-   3. ESTRUCTURA
-   ========================================================================== */
-
 .estructura {
   display: grid;
   grid-template-columns: 262px 1fr;
   min-height: 100vh;
 }
-
-/* --- Barra lateral --- */
 
 .lateral {
   position: sticky;
@@ -246,7 +214,6 @@ a:hover { color: var(--texto); }
 
 .nav__icono { width: 19px; font-size: 1rem; text-align: center; }
 
-/* Resumen fijo al pie de la barra lateral. */
 .lateral__pie {
   margin-top: auto;
   padding: 15px;
@@ -267,8 +234,6 @@ a:hover { color: var(--texto); }
 .lateral__clave { color: var(--texto-tenue); }
 .lateral__valor { font-weight: 640; font-family: var(--mono); }
 
-/* --- Contenido --- */
-
 .contenido {
   min-width: 0;
   padding: 34px 38px 60px;
@@ -286,8 +251,6 @@ a:hover { color: var(--texto); }
 }
 
 .encabezado__titulo p { margin-top: 5px; font-size: 0.92rem; }
-
-/* --- Responsive --- */
 
 @media (max-width: 1000px) {
   .estructura { grid-template-columns: 1fr; }
@@ -318,12 +281,6 @@ a:hover { color: var(--texto); }
   .contenido > * { min-width: 0; }
 }
 
-/* ==========================================================================
-   4. COMPONENTES
-   ========================================================================== */
-
-/* --- Rejillas --- */
-
 .rejilla { display: grid; gap: 18px; }
 .rejilla-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .rejilla-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
@@ -338,8 +295,6 @@ a:hover { color: var(--texto); }
 @media (max-width: 860px) {
   .rejilla-3 { grid-template-columns: 1fr; }
 }
-
-/* --- Tarjetas --- */
 
 .tarjeta {
   padding: 22px;
@@ -370,8 +325,6 @@ a:hover { color: var(--texto); }
   color: var(--texto-tenue);
   border-top: 1px solid var(--borde-suave);
 }
-
-/* --- Indicadores --- */
 
 .indicador {
   position: relative;
@@ -411,7 +364,6 @@ a:hover { color: var(--texto); }
 
 .indicador__nota { margin-top: 5px; font-size: 0.78rem; color: var(--texto-suave); }
 
-/* Franja de color en el borde superior de cada indicador. */
 .indicador--primario  { border-top: 3px solid var(--primario); }
 .indicador--exito     { border-top: 3px solid var(--exito); }
 .indicador--alerta    { border-top: 3px solid var(--alerta); }
@@ -423,8 +375,6 @@ a:hover { color: var(--texto); }
 .indicador--alerta     .indicador__valor { color: var(--alerta); }
 .indicador--informacion .indicador__valor { color: var(--informacion); }
 .indicador--peligro    .indicador__valor { color: var(--peligro); }
-
-/* --- Botones --- */
 
 .boton {
   display: inline-flex;
@@ -500,8 +450,6 @@ a:hover { color: var(--texto); }
 
 .boton-grupo { display: flex; gap: 9px; flex-wrap: wrap; }
 
-/* --- Campos --- */
-
 .campo { display: flex; flex-direction: column; gap: 7px; }
 
 .campo__etiqueta {
@@ -570,7 +518,6 @@ a:hover { color: var(--texto); }
   pointer-events: none;
 }
 
-/* Interruptor de dos opciones. */
 .conmutador {
   display: inline-flex;
   gap: 3px;
@@ -598,8 +545,6 @@ a:hover { color: var(--texto); }
   background: var(--primario);
   box-shadow: 0 2px 8px rgba(108, 92, 231, 0.3);
 }
-
-/* --- Insignias --- */
 
 .insignia {
   display: inline-flex;
@@ -632,8 +577,6 @@ a:hover { color: var(--texto); }
   letter-spacing: 0.02em;
 }
 
-/* --- Avisos --- */
-
 .aviso {
   display: flex;
   gap: 12px;
@@ -649,8 +592,6 @@ a:hover { color: var(--texto); }
 .aviso--alerta      { color: var(--alerta); background: var(--alerta-tenue); border-color: rgba(245, 158, 11, 0.3); }
 .aviso--peligro     { color: var(--peligro); background: var(--peligro-tenue); border-color: rgba(244, 63, 94, 0.3); }
 .aviso p { color: inherit; opacity: 0.92; }
-
-/* --- Notificaciones --- */
 
 .notificacion {
   display: flex;
@@ -718,8 +659,6 @@ a:hover { color: var(--texto); }
   to   { transform: translateX(390%); }
 }
 
-/* --- Estados vacios --- */
-
 .vacio {
   display: flex;
   flex-direction: column;
@@ -741,10 +680,6 @@ a:hover { color: var(--texto); }
 
 .vacio h4 { font-size: 1rem; }
 .vacio p { max-width: 380px; font-size: 0.86rem; }
-
-/* ==========================================================================
-   5. TABLAS
-   ========================================================================== */
 
 .tabla-caja {
   overflow: hidden;
@@ -808,7 +743,6 @@ tbody tr:last-child td { border-bottom: none; }
 
 .acciones { display: flex; gap: 6px; justify-content: flex-end; }
 
-/* Boton pequeno solo con icono. */
 .icono-boton {
   display: grid;
   place-items: center;
@@ -827,11 +761,6 @@ tbody tr:last-child td { border-bottom: none; }
 .icono-boton--peligro:hover { color: var(--peligro); border-color: var(--peligro); background: var(--peligro-tenue); }
 .icono-boton--exito:hover { color: var(--exito); border-color: var(--exito); background: var(--exito-tenue); }
 
-/* ==========================================================================
-   6. GRAFICAS
-   ========================================================================== */
-
-/* Barra horizontal usada en el comparador de algoritmos. */
 .barra-fila {
   display: grid;
   grid-template-columns: 132px 1fr 96px;
@@ -874,7 +803,6 @@ tbody tr:last-child td { border-bottom: none; }
   text-align: right;
 }
 
-/* Columnas verticales del histograma de pesos. */
 .columnas {
   display: flex;
   align-items: flex-end;
@@ -907,7 +835,6 @@ tbody tr:last-child td { border-bottom: none; }
   border-top: 1px solid var(--borde-suave);
 }
 
-/* Medidor de ocupacion del vehiculo. */
 .medidor { display: flex; flex-direction: column; gap: 9px; }
 
 .medidor__barra {
@@ -951,7 +878,6 @@ tbody tr:last-child td { border-bottom: none; }
   color: var(--texto-tenue);
 }
 
-/* Lista de comparacion de estrategias. */
 .comparacion { display: flex; flex-direction: column; gap: 13px; }
 
 .comparacion__item {
@@ -988,11 +914,6 @@ tbody tr:last-child td { border-bottom: none; }
 
 .comparacion__datos b { font-family: var(--mono); color: var(--texto); }
 
-/* ==========================================================================
-   7. ELEMENTOS ESPECIFICOS DE PAGINA
-   ========================================================================== */
-
-/* Area de arrastre para subir archivos. */
 .zona-subida {
   display: flex;
   flex-direction: column;
@@ -1017,7 +938,6 @@ tbody tr:last-child td { border-bottom: none; }
 .zona-subida__nombre { font-size: 0.94rem; font-weight: 600; }
 .zona-subida__pista { font-size: 0.79rem; color: var(--texto-tenue); }
 
-/* Lista de pedidos dentro de un plan de carga. */
 .plan-lista { display: flex; flex-direction: column; gap: 8px; max-height: 430px; overflow-y: auto; }
 
 .plan-item {
@@ -1040,7 +960,6 @@ tbody tr:last-child td { border-bottom: none; }
 .plan-item__direccion { font-size: 0.85rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .plan-item__peso { flex-shrink: 0; font-family: var(--mono); font-size: 0.88rem; font-weight: 640; }
 
-/* Ejemplo de formato de archivo. */
 .ejemplo {
   padding: 15px 17px;
   font-family: var(--mono);
@@ -1054,7 +973,6 @@ tbody tr:last-child td { border-bottom: none; }
   white-space: pre;
 }
 
-/* Panel 404. */
 .pagina-404 {
   display: grid;
   place-items: center;
@@ -1071,10 +989,6 @@ tbody tr:last-child td { border-bottom: none; }
   color: var(--primario);
   letter-spacing: -0.05em;
 }
-
-/* ==========================================================================
-   8. ACCESIBILIDAD
-   ========================================================================== */
 
 @media (prefers-reduced-motion: reduce) {
   *,
@@ -1110,10 +1024,6 @@ tbody tr:last-child td { border-bottom: none; }
   border-radius: var(--radio-s);
 }
 
-/* ==========================================================================
-   9. IMPRESION
-   ========================================================================== */
-
 @media print {
   .lateral, .encabezado__acciones, .acciones, #notificaciones, #cargando { display: none !important; }
   .estructura { grid-template-columns: 1fr; }
@@ -1122,7 +1032,6 @@ tbody tr:last-child td { border-bottom: none; }
   .tarjeta, .tabla-caja { border: 1px solid #ccc; box-shadow: none; }
 }
 
-/* Separacion de las cargas y sus detalles. */
 .grupo-mochila { margin: 16px 0; }
 .grupo-mochila > summary { cursor: pointer; font-weight: 600; margin-bottom: 10px; }
 .tarjeta > h3, #detalle > h3 { margin-bottom: 12px; }

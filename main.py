@@ -1,24 +1,4 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-main.py
-======
-
-Consola de RAPPIDOS.
-
-Es el SEGUNDO adaptador del proyecto: la misma logica que usa la web, pero
-presentada en menus de texto. No contiene reglas de negocio propias; todo
-sale de `nucleo.servicio.RAPPIDOS`, igual que en `app.py`.
-
-Se conserva como un modo de uso del sistema porque es el mas comodo para
-demostrar el comportamiento de los algoritmos en una clase: se ve el menu,
-se escribe el dato y se observa cuantas comparaciones hizo el algoritmo.
-
-    python main.py
-
-La version original de esta consola quedo guardada en `legado/`, sin tocar,
-como referencia historica del proyecto.
-"""
+"""Interfaz de consola."""
 
 from __future__ import annotations
 
@@ -36,40 +16,28 @@ from nucleo import (
     ObjetivoMochila,
 )
 
-
-# --------------------------------------------------------------------------
-# Presentacion
-# --------------------------------------------------------------------------
-
 LINEA = "=" * 60
 SEP = "-" * 60
-
 
 def titulo(texto: str) -> None:
     print(f"\n{LINEA}\n  {texto}\n{LINEA}")
 
-
 def exito(mensaje: str) -> None:
     print(f"  [OK]   {mensaje}")
-
 
 def fallo(mensaje: str) -> None:
     print(f"  [!]    {mensaje}")
 
-
 def aviso(mensaje: str) -> None:
     print(f"  [i]    {mensaje}")
 
-
 def limpiar_pantalla() -> None:
     os.system("cls" if os.name == "nt" else "clear")
-
 
 def pedir(etiqueta: str, por_defecto: str = "") -> str:
     """Lee una linea de texto, ofreciendo un valor por defecto."""
     sufijo = f" [{por_defecto}]" if por_defecto else ""
     return input(f"  {etiqueta}{sufijo}: ").strip() or por_defecto
-
 
 def pedir_opcion(texto: str, opciones: dict) -> Optional[str]:
     """Muestra un menu y devuelve la clave elegida, o None si se cancela."""
@@ -86,22 +54,14 @@ def pedir_opcion(texto: str, opciones: dict) -> Optional[str]:
             return eleccion
         fallo("Opcion no valida.")
 
-
 def confirmar(texto: str) -> bool:
     return pedir(f"{texto} (si/no)", "no").lower().startswith("s")
-
 
 def formatear_peso(valor) -> str:
     try:
         return f"{float(valor):.2f} kg"
     except (TypeError, ValueError):
         return "0.00 kg"
-
-
-# --------------------------------------------------------------------------
-# Acciones del menu
-# --------------------------------------------------------------------------
-
 
 def accion_registrar(servicio: RAPPIDOS) -> None:
     titulo("REGISTRAR PEDIDO")
@@ -120,7 +80,6 @@ def accion_registrar(servicio: RAPPIDOS) -> None:
         exito(f"Pedido {resultado.datos.codigo} registrado: {resultado.mensaje}")
     else:
         fallo(resultado.mensaje)
-
 
 def accion_listar(servicio: RAPPIDOS) -> None:
     titulo("LISTAR PEDIDOS")
@@ -163,14 +122,12 @@ def accion_listar(servicio: RAPPIDOS) -> None:
     print(SEP)
     aviso(f"(*) prioritario    Total: {len(pedidos)} pedido(s)")
 
-
 def accion_generar(servicio: RAPPIDOS) -> None:
     titulo("GENERAR PEDIDOS ALEATORIOS")
 
     aviso("Esta opcion ha sido desactivada: el sistema ahora importa por archivo con confirmacion.")
     aviso("Para generar datos de prueba, descarga la plantilla y sube un archivo, o registra manualmente.")
     return
-
 
 def accion_importar(servicio: RAPPIDOS) -> None:
     titulo("IMPORTAR DESDE ARCHIVO")
@@ -197,7 +154,6 @@ def accion_importar(servicio: RAPPIDOS) -> None:
         print(f"    linea {error.linea}: {error.mensaje}")
 
     exito(resultado.mensaje)
-
 
 def accion_buscar(servicio: RAPPIDOS) -> None:
     titulo("BUSCAR PEDIDO")
@@ -227,7 +183,6 @@ def accion_buscar(servicio: RAPPIDOS) -> None:
         f"{busqueda['comparaciones']} comparacion(es) en el indice {busqueda['indice']}."
     )
 
-
 def accion_medir_algoritmos(servicio: RAPPIDOS) -> None:
     titulo("COMPARAR ALGORITMOS DE ORDENAMIENTO")
 
@@ -251,7 +206,6 @@ def accion_medir_algoritmos(servicio: RAPPIDOS) -> None:
 
     print(SEP)
     aviso("Todos receives la MISMA lista sin ordenar: por eso la comparacion vale.")
-
 
 def accion_planear(servicio: RAPPIDOS) -> None:
     titulo("PREPARAR SALIDA")
@@ -302,7 +256,6 @@ def accion_planear(servicio: RAPPIDOS) -> None:
     else:
         fallo(resultado.mensaje)
 
-
 def accion_objetivo(servicio: RAPPIDOS) -> None:
     titulo("MOCHILA 0/1: OBJETIVO DE LA COMBINACION")
 
@@ -328,7 +281,6 @@ def accion_objetivo(servicio: RAPPIDOS) -> None:
     aviso(f"Peso cargado: {formatear_peso(plan.peso_total)} de {plan.capacidad} kg.")
     aviso(f"Criterio: {plan.objetivo}")
 
-
 def accion_estadisticas(servicio: RAPPIDOS) -> None:
     titulo("ESTADISTICAS")
 
@@ -347,7 +299,7 @@ def accion_estadisticas(servicio: RAPPIDOS) -> None:
     print(f"  {'Peso promedio':<24} {formatear_peso(resumen['peso_promedio'])}")
     print(f"  {'Rango':<24} {formatear_peso(resumen['peso_minimo'])} - "
           f"{formatear_peso(resumen['peso_maximo'])}")
-    print(f"  {'Viajes necesarios':<24} {resumen['viajes_necesarios']}")
+    print(f"  {'Viajes minimos':<24} {resumen['viajes_necesarios']}")
     print(f"  {'Ocupacion teorica':<24} {resumen['ocupacion_teorica']}%")
 
     print(f"\n  {'DISTRIBUCION POR PESO':<24}")
@@ -366,7 +318,6 @@ def accion_estadisticas(servicio: RAPPIDOS) -> None:
         print(SEP)
         for zona in zonas[:5]:
             print(f"  {zona['zona']:<24} {zona['cantidad']:>4} pedido(s)")
-
 
 def accion_historial(servicio: RAPPIDOS) -> None:
     titulo("HISTORIAL DE SALIDAS")
@@ -390,7 +341,6 @@ def accion_historial(servicio: RAPPIDOS) -> None:
         )
 
     print(SEP)
-
 
 def accion_limpiar(servicio: RAPPIDOS) -> None:
     titulo("ELIMINAR PEDIDOS")
@@ -422,11 +372,6 @@ def accion_limpiar(servicio: RAPPIDOS) -> None:
     else:
         fallo(resultado.mensaje)
 
-
-# --------------------------------------------------------------------------
-# Menu principal
-# --------------------------------------------------------------------------
-
 MENU = {
     "1": ("Registrar pedido", accion_registrar),
     "2": ("Listar pedidos", accion_listar),
@@ -441,11 +386,8 @@ MENU = {
     "B": ("Eliminar pedidos", accion_limpiar),
 }
 
-
 def menu(servicio: RAPPIDOS) -> None:
-    # Tres intentos fallidos y se sale. Sin este tope, teclear siempre ENTER
-    # (la opcion vacia no existe) deja el programa pidiendo la opcion para
-    # siempre, sin forma de terminar.
+
     intentos_fallidos = 0
     maximo_intentos = 3
 
@@ -491,7 +433,6 @@ def menu(servicio: RAPPIDOS) -> None:
 
     print("\n  Demasiados intentos fallidos. Saliendo del programa...")
 
-
 def principal() -> int:
     servicio = RAPPIDOS()
 
@@ -502,7 +443,6 @@ def principal() -> int:
 
     menu(servicio)
     return 0
-
 
 if __name__ == "__main__":
     try:

@@ -1,4 +1,4 @@
-"""Regresiones del CSV con encabezados KILO y NUMERO. Sin dependencias extra."""
+"""Modulo prueba_importador."""
 
 import sys
 import unittest
@@ -7,7 +7,6 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from nucleo.importador import importar_archivo
-
 
 class PruebaEncabezados(unittest.TestCase):
     def test_csv_del_usuario(self):
@@ -43,7 +42,6 @@ class PruebaEncabezados(unittest.TestCase):
         resultado = importar_archivo("pedidos.csv", contenido, [])
         self.assertEqual(resultado.total_importados, 0)
         self.assertIn("columna de peso", resultado.errores[0].mensaje)
-
 
 if __name__ == "__main__":
     unittest.main()

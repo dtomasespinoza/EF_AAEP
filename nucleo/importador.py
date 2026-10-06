@@ -1,23 +1,4 @@
-"""
- nucleo.importador
- =================
-
- Carga masiva de pedidos desde archivos CSV, TXT o XLSX (Excel).
-
- En vez de exigir un formato unico y rigido, el importador DETECTA las
- columnas por nombre de encabezado. Asi un archivo con las columnas
- `Peso`, `Direccion`, `Cliente` o `weight,address` se carga igual, y el
- usuario no tiene que renombrar nada.
-
- Cada fila se valida de forma independiente: si la fila 3 tiene un peso de
- "abc", se registra el error con su numero de fila y las demas filas se
- importan igual. Un archivo con 500 pedidos donde uno esta malo importa 499
- en vez de nada, que es el comportamiento que espera cualquier usuario.
-
- Para Excel se usa `openpyxl`, que es una dependencia OPCIONAL: si no esta
- instalada, el importador de .xlsx avisa con un mensaje claro y el resto de
- formatos siguen funcionando.
-"""
+"""Importacion de pedidos desde CSV, TXT y Excel."""
 
 from __future__ import annotations
 
@@ -28,18 +9,13 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 from .modelos import PESO_MAXIMO_KG, PESO_MINIMO_KG, Pedido
 
-#: Palabras clave para reconocer cada columna, en español y en inglés.
-#: La lista de un campo se prueba con `in`, no con igualdad, para que
-#: "Distrito de entrega" se reconozca igual que "distrito".
 CLAVES_PESO = ("peso", "peso_kg", "kg", "kilo", "weight", "peso_envio")
 CLAVES_DISTRITO = ("distrito", "barrio", "localidad", "zona", "sector", "district")
 CLAVES_DIRECCION = ("direccion", "address", "destino", "domicilio", "dir")
 CLAVES_CLIENTE = ("cliente", "nombre", "customer", "name", "destinatario")
 CLAVES_TELEFONO = ("telefono", "phone", "celular", "movil", "contacto", "numero")
 
-#: Separadores aceptados en archivos CSV.
 DELIMITADORES = (";", ",", "\t", "|")
-
 
 @dataclass
 class ErrorImportacion:
@@ -51,7 +27,6 @@ class ErrorImportacion:
 
     def a_dict(self) -> Dict[str, Any]:
         return {"linea": self.linea, "mensaje": self.mensaje, "contenido": self.contenido}
-
 
 @dataclass
 class ResultadoImportacion:
@@ -100,19 +75,8 @@ class ResultadoImportacion:
             "resumen": self.resumen(),
         }
 
-
-# --------------------------------------------------------------------------
-# Entrada principal
-# --------------------------------------------------------------------------
-
-
 def importar_archivo(nombre_archivo: str, contenido: bytes, codigos: Sequence[str]) -> ResultadoImportacion:
-    """Punto de entrada: decide el parser segun la extension del archivo.
-
-    Se recibe BYTES y no texto porque un .xlsx es un archivo binario (un ZIP)
-    y no puede decodificarse como texto. La decodificacion a texto se hace
-    recien dentro de cada parser, donde se sabe que el formato lo permite.
-    """
+    """Punto de entrada: decide el parser segun la extension del archivo."""
     extension = nombre_archivo.rsplit(".", 1)[-1].lower() if "." in nombre_archivo else ""
 
     if extension == "csv":
@@ -134,20 +98,8 @@ def importar_archivo(nombre_archivo: str, contenido: bytes, codigos: Sequence[st
         ],
     )
 
-
-# --------------------------------------------------------------------------
-# CSV
-# --------------------------------------------------------------------------
-
-
 def _importar_csv(contenido: bytes, codigos: Sequence[str]) -> ResultadoImportacion:
-    """Importa un CSV detectando el separador automaticamente.
-
-    `csv.Sniffer` examina las primeras filas y propone el delimitador. Se
-    prueba cada candidato y se acepta el que produce mas columnas, porque
-    Sniffer puede fallar con archivos de una sola columna o con separadores
-    mixtos.
-    """
+    """Importa un CSV detectando el separador automaticamente."""
     texto = _decodificar(contenido)
     resultado = ResultadoImportacion(formato="CSV")
 
@@ -176,23 +128,8 @@ def _importar_csv(contenido: bytes, codigos: Sequence[str]) -> ResultadoImportac
 
     return _procesar_tabla(filas, codigos, "CSV", tiene_encabezado=_parece_encabezado(filas[0]))
 
-
-# --------------------------------------------------------------------------
-# TXT
-# --------------------------------------------------------------------------
-
-
 def _importar_txt(contenido: bytes, codigos: Sequence[str]) -> ResultadoImportacion:
-    """Importa un TXT de texto plano.
-
-    Acepta los dos formatos mas comunes:
-
-        5.5                          -> solo el peso
-        5.5; Calle 10 #3-22         -> peso y direccion separados por `;`
-
-    Las lineas en blanco y las que empiezan con `#` se ignoran, lo que
-    permite documentar el archivo con comentarios.
-    """
+    """Importa un TXT de texto plano."""
     texto = _decodificar(contenido)
     resultado = ResultadoImportacion(formato="TXT")
 
@@ -217,17 +154,9 @@ def _importar_txt(contenido: bytes, codigos: Sequence[str]) -> ResultadoImportac
         resultado.errores.append(ErrorImportacion(0, "El archivo no tiene datos."))
         return resultado
 
-    # En TXT la primera fila tambien puede ser un encabezado con las
-    # palabras clave; si lo es, se descarta.
     encabezado = _parece_encabezado(filas[0]) and len(filas[0]) > 1
 
     return _procesar_tabla(filas, codigos, "TXT", tiene_encabezado=encabezado)
-
-
-# --------------------------------------------------------------------------
-# Excel
-# --------------------------------------------------------------------------
-
 
 def _importar_excel(contenido: bytes, codigos: Sequence[str]) -> ResultadoImportacion:
     """Importa un .xlsx usando openpyxl (dependencia opcional)."""
@@ -273,24 +202,13 @@ def _importar_excel(contenido: bytes, codigos: Sequence[str]) -> ResultadoImport
 
     return _procesar_tabla(filas, codigos, "XLSX", tiene_encabezado=_parece_encabezado(filas[0]))
 
-
-# --------------------------------------------------------------------------
-# Procesamiento comun a los tres formatos
-# --------------------------------------------------------------------------
-
-
 def _procesar_tabla(
     filas: List[List[str]],
     codigos: Sequence[str],
     formato: str,
     tiene_encabezado: bool = False,
 ) -> ResultadoImportacion:
-    """Convierte una tabla de texto en pedidos, valido fila por fila.
-
-    Este es el punto donde los tres formatos se unifican: CSV, TXT y XLSX
-    producen una lista de listas, y a partir de aqui el proceso es el
-    mismo. Esa separacion evita duplicar la logica de validacion tres veces.
-    """
+    """Convierte una tabla de texto en pedidos, valido fila por fila."""
     resultado = ResultadoImportacion(formato=formato)
 
     if tiene_encabezado:
@@ -302,8 +220,6 @@ def _procesar_tabla(
         cuerpo = filas
         numero_inicial = 1
 
-    # Si hay encabezado pero ninguna columna reconocible, se informa: casi
-    # siempre significa que el archivo tiene otro formato.
     if tiene_encabezado and (not mapa_columnas or "peso" not in mapa_columnas):
         resultado.errores.append(
             ErrorImportacion(
@@ -357,14 +273,8 @@ def _procesar_tabla(
 
     return resultado
 
-
 def _mapear_columnas(encabezado: Sequence[str]) -> Optional[Dict[str, int]]:
-    """Detecta en que indice esta cada columna relevante.
-
-    Devuelve None si ninguna columna coincide con las palabras clave, lo
-    que indica que el archivo no tiene el formato esperado. Devuelve un
-    diccionario vacio si solo encontro columnas no utilizables.
-    """
+    """Detecta en que indice esta cada columna relevante."""
     mapa: Dict[str, int] = {}
 
     for indice, titulo in enumerate(encabezado):
@@ -373,10 +283,6 @@ def _mapear_columnas(encabezado: Sequence[str]) -> Optional[Dict[str, int]]:
         if not normalizado:
             continue
 
-        # El orden importa: "distrito" se prueba ANTES que "direccion" porque
-        # ambos son claves posibles y un archivo con las dos columnas debe
-        # mapear cada una a su campo. "barrio" y "zona" viven en el mismo
-        # grupo porque significan lo mismo para agrupar la carga.
         if "peso" not in mapa and any(clave in normalizado for clave in CLAVES_PESO):
             mapa["peso"] = indice
         elif "distrito" not in mapa and any(clave in normalizado for clave in CLAVES_DISTRITO):
@@ -389,7 +295,6 @@ def _mapear_columnas(encabezado: Sequence[str]) -> Optional[Dict[str, int]]:
             mapa["telefono"] = indice
 
     return mapa or None
-
 
 def _extraer_con_encabezado(
     fila: Sequence[str], mapa: Dict[str, int]
@@ -410,19 +315,8 @@ def _extraer_con_encabezado(
         valor("telefono"),
     )
 
-
 def _extraer_posicional(fila: Sequence[str]) -> Tuple[str, str, str, str, str]:
-    """Lee los valores por posicion, para archivos sin encabezado.
-
-    El peso siempre va primero. Los campos siguientes se asignan por
-    orden: distrito, direccion, cliente y telefono. Se reconoce el telefono
-    porque es el unico que empieza por digito y mide 10 caracteres, lo que
-    evita confundirlo con un nombre propio.
-
-    Si NO hay distrito, se deduce de lo que sigue a la ultima coma de la
-    direccion, que es donde venia escrito antes de separarlo. Asi un
-    archivo antiguo sin columna de distrito sigue agrupando bien.
-    """
+    """Lee los valores por posicion, para archivos sin encabezado."""
     peso = str(fila[0]).strip() if len(fila) > 0 else ""
     distrito = ""
     direccion = ""
@@ -449,14 +343,8 @@ def _extraer_posicional(fila: Sequence[str]) -> Tuple[str, str, str, str, str]:
 
     return peso, distrito, direccion, cliente, telefono
 
-
 def _validar_peso(texto: str) -> str:
-    """Devuelve el mensaje de error, o cadena vacia si el peso es valido.
-
-    La conversion se hace con `replace` para tolerar el formato con coma
-    decimal que usa Excel en configuraciones regionales hispanicas: "2,5"
-    son 2.5 kg, no dos mil quinientos.
-    """
+    """Devuelve el mensaje de error, o cadena vacia si el peso es valido."""
     if not texto:
         return "Falta el peso."
 
@@ -473,26 +361,8 @@ def _validar_peso(texto: str) -> str:
 
     return ""
 
-
-# --------------------------------------------------------------------------
-# Utilidades
-# --------------------------------------------------------------------------
-
-
 def _a_float(texto: str) -> float:
-    """Convierte texto a float admitiendo coma o punto decimal.
-
-    El problema real es que "8,25" en la mayoria de los locales significa
-    8.25, no 825. Un `float()` directo lanzaria ValueError y la fila se
-    perderia, cuando el usuario si estaba escribiendo un peso correcto.
-
-    Se desambigua por posicion: si hay punto Y coma, el ultimo de los dos
-    separadores es el decimal (pista: "1.234,56" es formato europeo y
-    "1,234.56" es formato anglosajon). Si hay un solo separador y esta
-    seguido de exactamente 3 digitos, se interpreta como separador de miles
-    ("1,500" son mil quinientos), porque un peso de 1.5 kg con tres
-    decimales no tiene sentido en este dominio.
-    """
+    """Convierte texto a float admitiendo coma o punto decimal."""
     limpio = str(texto).strip().replace(" ", "").replace("\u00a0", "")
 
     if not limpio:
@@ -512,14 +382,8 @@ def _a_float(texto: str) -> float:
 
     return float(limpio)
 
-
 def _decodificar(contenido: bytes) -> str:
-    """Decodifica bytes a texto probando las codificaciones habituales.
-
-    Los archivos exportados desde Excel en espanol suelen venir en latin-1
-    o cp1252, no en utf-8. Intentar utf-8 primero y recurrir a latin-1
-    evita el error `UnicodeDecodeError` que abortaria la importacion.
-    """
+    """Decodifica bytes a texto probando las codificaciones habituales."""
     for codificacion in ("utf-8-sig", "utf-8", "cp1252", "latin-1"):
         try:
             return contenido.decode(codificacion)
@@ -528,13 +392,8 @@ def _decodificar(contenido: bytes) -> str:
 
     return contenido.decode("utf-8", errors="replace")
 
-
 def _normalizar(texto: Any) -> str:
-    """Pasa un encabezado a minusculas sin espacios ni acentos.
-
-    Asi "Peso (kg)", "PESO", " peso" y "Peso:" se reconocen como la misma
-    columna, sin obligar al usuario a acertar el formato exacto.
-    """
+    """Pasa un encabezado a minusculas sin espacios ni acentos."""
     limpio = str(texto or "").strip().lower()
 
     for acento, base in (
@@ -545,13 +404,8 @@ def _normalizar(texto: Any) -> str:
 
     return limpio.replace(" ", "").replace("_", "").replace("(", "").replace(")", "")
 
-
 def _parece_encabezado(fila: Sequence[str]) -> bool:
-    """Deduce si la primera fila es un encabezado y no un dato.
-
-    La heuristica es que un encabezado tiene texto no numerico Y alguna
-    palabra clave conocida. Un dato, en cambio, empieza por un numero.
-    """
+    """Deduce si la primera fila es un encabezado y no un dato."""
     if not fila:
         return False
 
@@ -572,7 +426,6 @@ def _parece_encabezado(fila: Sequence[str]) -> bool:
         clave.replace("_", "") in normalizado
         for clave in CLAVES_PESO + CLAVES_DIRECCION
     )
-
 
 def plantilla_csv() -> str:
     """Contenido de ejemplo para que el usuario vea el formato."""

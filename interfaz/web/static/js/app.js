@@ -1,27 +1,3 @@
-/* ==========================================================================
-   app.js
-   ======
-   Capa de comunicacion con la API y utilidades compartidas por las paginas.
-
-   Se escribio en JavaScript plano, sin frameworks ni dependencias, por dos
-   razones: el proyecto es de un curso donde lo que se evalua es el
-   algoritmo, y anadir un framework exigiria instalar Node.js en cada
-   equipo. Con `fetch` y unas pocas funciones auxiliares se resuelve todo
-   lo necesario.
-
-   ORGANIZACION
-     1. Referencias al DOM
-     2. Notificaciones y estado de carga
-     3. Cliente HTTP
-     4. Formateo de datos
-     5. Utilidades de interfaz
-   ========================================================================== */
-
-/* ==========================================================================
-   1. REFERENCIAS AL DOM
-   ========================================================================== */
-
-/** Selector de un solo elemento. Lanza error si no existe. */
 const $ = (selector) => {
   const elemento = document.querySelector(selector);
   if (!elemento) {
@@ -30,31 +6,14 @@ const $ = (selector) => {
   return elemento;
 };
 
-/** Selector de varios elementos. Siempre devuelve un arreglo. */
 const $$ = (selector) => Array.from(document.querySelectorAll(selector));
 
-/* ==========================================================================
-   2. NOTIFICACIONES Y ESTADO DE CARGA
-   ========================================================================== */
-
-const ICONOS = {
-  exito: "✓",
-  error: "✕",
-  alerta: "!",
-  info: "i",
-};
-
-/** Muestra un aviso temporal en la esquina superior derecha. */
 function avisar(mensaje, tipo = "info", duracion = 4200) {
   const contenedor = $("#notificaciones");
   const elemento = document.createElement("div");
 
   elemento.className = `notificacion notificacion--${tipo}`;
   elemento.setAttribute("role", tipo === "error" ? "alert" : "status");
-
-  const icono = document.createElement("span");
-  icono.className = "notificacion__icono";
-  icono.textContent = ICONOS[tipo] || ICONOS.info;
 
   const texto = document.createElement("div");
   texto.className = "notificacion__texto";
@@ -66,7 +25,7 @@ function avisar(mensaje, tipo = "info", duracion = 4200) {
   cerrar.setAttribute("aria-label", "Cerrar aviso");
   cerrar.addEventListener("click", () => elemento.remove());
 
-  elemento.append(icono, texto, cerrar);
+  elemento.append(texto, cerrar);
   contenedor.appendChild(elemento);
 
   if (duracion > 0) {
@@ -81,8 +40,6 @@ function avisar(mensaje, tipo = "info", duracion = 4200) {
   return elemento;
 }
 
-/* Un contador, no un booleano, para que dos peticiones simultaneas no se
-   cancelen entre si al terminar una. */
 let peticionesEnCurso = 0;
 
 function marcarCarga(inicio) {
@@ -90,18 +47,8 @@ function marcarCarga(inicio) {
   $("#cargando").classList.toggle("activo", peticionesEnCurso > 0);
 }
 
-/* ==========================================================================
-   3. CLIENTE HTTP
-   ========================================================================== */
-
 class Api {
-  /**
-   * Envia una peticion al servidor.
-   *
-   * Toda peticion devuelve la misma forma (`exito`, `mensaje`, `datos`),
-   * asi que aqui solo hace falta desempaquetar y avisar los errores. La
-   * funcion que llama se ocupa de los datos.
-   */
+
   static async enviar(ruta, metodo = "GET", cuerpo = null) {
     marcarCarga(true);
 
@@ -233,26 +180,19 @@ class Api {
   }
 }
 
-/* ==========================================================================
-   4. FORMATEO DE DATOS
-   ========================================================================== */
-
 const FORMATO = new Intl.NumberFormat("es-CO", {
   minimumFractionDigits: 1,
   maximumFractionDigits: 1,
 });
 
-/** Peso con una sola cifra decimal: "12.5 kg". */
 function peso(valor) {
   return `${FORMATO.format(Number(valor) || 0)} kg`;
 }
 
-/** Numero sin decimales: "1.234". */
 function entero(valor) {
   return new Intl.NumberFormat("es-CO").format(Number(valor) || 0);
 }
 
-/** Tiempo en milisegundos con la unidad mas legible. */
 function duracion(milisegundos) {
   const valor = Number(milisegundos) || 0;
 
@@ -265,13 +205,6 @@ function duracion(milisegundos) {
   return `${(valor / 1000).toFixed(2)} s`;
 }
 
-/**
- * Convierte texto de JavaScript en HTML seguro.
- *
- * Los datos vienen del servidor, pero un nombre de cliente podria contener
- * `<script>`. Insertar eso con innerHTML ejecutaria codigo. Se escapan los
- * cinco caracteres peligrosos antes de armar el HTML.
- */
 function escapar(texto) {
   return String(texto ?? "")
     .replace(/&/g, "&amp;")
@@ -281,13 +214,6 @@ function escapar(texto) {
     .replace(/'/g, "&#39;");
 }
 
-/**
- * Crea un elemento con sus atributos y su texto.
- *
- * Se prefiere a innerHTML para el contenido dinamico: al asignar `textContent`
- * no hay forma de que un dato se interprete como HTML, sin importar el
- * escaping previo.
- */
 function elemento(etiqueta, atributos = {}, texto = "") {
   const nodo = document.createElement(etiqueta);
 
@@ -297,9 +223,7 @@ function elemento(etiqueta, atributos = {}, texto = "") {
     } else if (clave === "texto") {
       nodo.textContent = valor;
     } else if (clave === "estilo") {
-      // `estilo` es una abreviatura interna: `setAttribute("estilo", ...)`
-      // crearia un atributo desconocido que el navegador ignora, y los
-      // estilos NO se aplicarian. Hay que escribir en el atributo real.
+
       nodo.style.cssText = valor;
     } else if (valor !== null && valor !== undefined && valor !== false) {
       nodo.setAttribute(clave, valor);
@@ -313,7 +237,6 @@ function elemento(etiqueta, atributos = {}, texto = "") {
   return nodo;
 }
 
-/** Inserta varios hijos, ignorando los nulos (condicionales en los templates). */
 function agregar(contenedor, ...hijos) {
   for (const hijo of hijos) {
     if (hijo) {
@@ -323,7 +246,6 @@ function agregar(contenedor, ...hijos) {
   return contenedor;
 }
 
-/** Clase CSS del badge segun el porcentaje de ocupacion de un pedido. */
 function clasePeso(pesoKg, capacidad) {
   const proporcion = (Number(pesoKg) || 0) / (Number(capacidad) || 30);
 
@@ -332,16 +254,10 @@ function clasePeso(pesoKg, capacidad) {
   return "";
 }
 
-/* ==========================================================================
-   5. UTILIDADES DE INTERFAZ
-   ========================================================================== */
-
-/** Pide confirmacion antes de una accion destructiva. */
 function confirmarAccion(mensaje) {
   return window.confirm(mensaje);
 }
 
-/** Evita disparar la accion mientras la tecla Enter mantiene pulsada. */
 function alPresionarEnter(elemento, accion) {
   elemento.addEventListener("keydown", (evento) => {
     if (evento.key === "Enter" && !evento.repeat) {
@@ -351,7 +267,6 @@ function alPresionarEnter(elemento, accion) {
   });
 }
 
-/** Vacia un contenedor de contenido. */
 function vaciar(contenedor) {
   while (contenedor.firstChild) {
     contenedor.removeChild(contenedor.firstChild);
@@ -359,7 +274,6 @@ function vaciar(contenedor) {
   return contenedor;
 }
 
-/** Inserta el bloque de "sin resultados" cuando una tabla no tiene filas. */
 function mostrarVacio(contenedor, icono, titulo, texto) {
   const vacio = elemento("div", {
     clase: "vacio"
@@ -379,12 +293,6 @@ function mostrarVacio(contenedor, icono, titulo, texto) {
   vaciar(contenedor).appendChild(vacio);
 }
 
-/**
- * Actualiza el resumen de la barra lateral.
- *
- * Se llama desde varias paginas, asi que se resuelve el elemento de forma
- * opcional: si la pagina no lo tiene, no falla.
- */
 async function refrescarLateral() {
   const nodoPendientes = $("#lateral-pendientes");
   const nodoPeso = $("#lateral-peso");
@@ -403,12 +311,10 @@ async function refrescarLateral() {
   }
 }
 
-/** Carga el catalogo de enums que viene del nucleo. */
 async function cargarCatalogo() {
   return Api.enviar("/api/catalogo");
 }
 
-/** Rellena un `<select>` con las opciones recibidas. */
 function llenarSelect(select, opciones, valorInicial) {
   vaciar(select);
 

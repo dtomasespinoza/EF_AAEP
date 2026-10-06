@@ -1,4 +1,3 @@
-
 {% extends "base.html" %}
 
 {% block titulo %}
@@ -10,7 +9,7 @@ Preparar salida
 {% endblock %}
 
 {% block descripcion %}
-Prepara varios viajes, revisa cada mochila y consulta lo que salió en el historial.
+Cada mochila lleva pedidos de un solo distrito, con un máximo de 30 kg. La optimización se aplica dentro de cada distrito.
 {% endblock %}
 
 {% block contenido %}
@@ -86,7 +85,7 @@ async function planear() {
         open: true
       });
       c.append(elemento('summary', {
-        texto: `Mochila / viaje ${v.numero}: ${v.cantidad} pedidos · ${peso(v.peso_total)} / ${peso(v.capacidad)} · Libre: ${peso(v.disponible)}`
+        texto: `Mochila / viaje ${v.numero} · ${v.pedidos[0]?.distrito || "Sin distrito"}: ${v.cantidad} pedidos · ${peso(v.peso_total)} / ${peso(v.capacidad)} · Libre: ${peso(v.disponible)}`
       }));
       const t = elemento('div');
       tablaPedidos(t, v.pedidos);

@@ -1,26 +1,4 @@
-"""
- nucleo.generador
- ================
-
- Generacion de pedidos de prueba con DIRECCIONES ALEATORIAS.
-
- Sirve para tres cosas:
-
-    1. Probar el sistema sin tener que teclear 200 pedidos a mano.
-    2. Medir el comportamiento de los algoritmos: la burbuja en O(n^2) con
-       2000 pedidos tarda lo suficiente como para que la diferencia frente a
-       QuickSort sea visible en la grafica.
-    3. Demostrar la mejora de la mochila 0/1 sobre la heuristica original,
-       que necesita volumen para que la diferencia sea apreciable.
-
- El peso se genera con una distribucion sesgada: muchos pedidos pequenos y
- unos pocos pesados. Es lo que ocurre en una operacion de reparto real, y
- ademas es el caso donde First-Fit wasteful se comporta peor, que es
- justamente el punto que se quiere demostrar.
-
- Usa el modulo `random` de la biblioteca estandar con una semilla fija
- opcional, para que una demo sea reproducible.
-"""
+"""Datos de prueba para los algoritmos."""
 
 from __future__ import annotations
 
@@ -28,10 +6,6 @@ import random
 from typing import List, Optional, Sequence
 
 from .modelos import PESO_MAXIMO_KG, PESO_MINIMO_KG, Pedido
-
-# --------------------------------------------------------------------------
-# Catálogos de datos para componer direcciones
-# --------------------------------------------------------------------------
 
 PREFIJOS = ["Calle", "Carrera", "Avenida", "Diagonal", "Circular", "Transversal"]
 
@@ -63,7 +37,6 @@ APELLIDOS = [
     "Aguilar", "Castillo", "Morales", "Vargas", "Medina", "Navarro",
 ]
 
-
 class GeneradorPedidos:
     """Fabrica de pedidos aleatorios con direcciones plausibles."""
 
@@ -71,14 +44,7 @@ class GeneradorPedidos:
         self.azar = random.Random(semilla)
 
     def peso_aleatorio(self) -> float:
-        """Genera un peso sesgado hacia los valores bajos.
-
-        Se usa `azar.paretovariate` recortado al rango valido. Pareto produce
-        muchos valores pequenos y pocos grandes, que es exactamente la
-        forma de la distribucion real de pesos de un pedido. El recorte
-        protege del hecho de que Pareto tiene cola infinita y podria
-        devolver un peso de 90 kg, que el sistema rechazaria.
-        """
+        """Genera un peso sesgado hacia los valores bajos."""
         while True:
             candidato = self.azar.paretovariate(1.6)
 
@@ -131,7 +97,6 @@ class GeneradorPedidos:
             pedidos.append(self.crear(indice, codigo))
 
         return pedidos
-
 
 def generar_pedidos(cantidad: int, codigos: Sequence[str], semilla: Optional[int] = None) -> List[Pedido]:
     """Atajo funcional: crea el generador y produce los pedidos."""

@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{% block titulo %}RAPPIDOS{% endblock %} · Sistema de pedidos</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/estilos.css') }}">
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📦</text></svg>">
 </head>
 <body>
 
@@ -18,7 +17,7 @@
 
   <aside class="lateral">
     <div class="marca">
-      <div class="marca__icono">📦</div>
+      <div class="marca__icono"></div>
       <div>
         <div class="marca__nombre">RAPPIDOS</div>
         <div class="marca__pie">Sistema de pedidos</div>
@@ -30,29 +29,29 @@
 
       <a href="{{ url_for('pagina_inicio') }}"
          class="nav__enlace {{ 'activo' if activo == 'inicio' }}">
-        <span class="nav__icono">◎</span> Panel
+        Panel
       </a>
 
       <a href="{{ url_for('pagina_pedidos') }}"
          class="nav__enlace {{ 'activo' if activo == 'pedidos' }}">
-        <span class="nav__icono">≡</span> Pedidos
+        Pedidos
       </a>
 
       <a href="{{ url_for('pagina_carga') }}"
          class="nav__enlace {{ 'activo' if activo == 'carga' }}">
-        <span class="nav__icono">⇪</span> Carga masiva
+        Carga masiva
       </a>
 
       <a href="{{ url_for('pagina_salidas') }}"
          class="nav__enlace {{ 'activo' if activo == 'salidas' }}">
-        <span class="nav__icono">➤</span> Preparar salida
+        Preparar salida
       </a>
 
-      <div class="nav__seccion">Análisis</div><a href="{{ url_for('pagina_analisis') }}" class="nav__enlace {{ 'activo' if activo == 'analisis' }}">⌕ Comparación y Búsqueda</a>
+      <div class="nav__seccion">Análisis</div><a href="{{ url_for('pagina_analisis') }}" class="nav__enlace {{ 'activo' if activo == 'analisis' }}">Comparación y Búsqueda</a>
 
       <a href="{{ url_for('pagina_estadisticas') }}"
          class="nav__enlace {{ 'activo' if activo == 'estadisticas' }}">
-        <span class="nav__icono">◱</span> Estadisticas
+        Estadisticas
       </a>
     </nav>
 

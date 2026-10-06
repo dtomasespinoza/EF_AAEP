@@ -1,23 +1,4 @@
-"""
- nucleo.servicio
- ===============
-
- Fachada de casos de uso de RAPPIDOS. Esta es la clase que consume TANTO la
- version de consola como la version web.
-
- Por que una fachada y no llamar a los modulos internos directamente:
-
-    - Un solo lugar donde vive la REGLA DE NEGOCIO. Si mañana el vehiculo
-      pasa de 30 kg a 35 kg, se cambia en un archivo.
-    - Las interfaces (consola, web) no dependen de los detalles internos,
-      asi que un cambio en el algoritmo no rompe la interfaz.
-    - Todas las funciones devuelven `ResultadoOperacion`, un tipo uniforme.
-      La interfaz no necesita try/except disperso ni conocer el tipo de
-      dato con el que responde cada caso de uso.
-
- Este es el patron Fachada (GoF). Es appropriate cuando se quiere encapsular
- un subsistema complejo detras de una interfaz sencilla.
-"""
+"""Operaciones del sistema de pedidos."""
 
 from __future__ import annotations
 
@@ -54,16 +35,11 @@ from .reparto import (
 )
 from .repositorio import Repositorio
 
-
 class RAPPIDOS:
     """Punto de entrada unico al sistema de pedidos."""
 
     def __init__(self, ruta_datos: Optional[str] = None) -> None:
         self.repositorio = Repositorio(ruta_datos)
-
-    # ================================================================
-    # CASOS DE USO: registro
-    # ================================================================
 
     def registrar(
         self,
@@ -73,18 +49,7 @@ class RAPPIDOS:
         telefono: str = "",
         distrito: str = "",
     ) -> ResultadoOperacion:
-        """Registra un pedido individual.
-
-        Acepta el peso como texto o como numero porque llega desde un
-        formulario web (que lo manda como cadena) y desde la consola
-        (donde el usuario lo teclea). La validacion se hace UNA sola vez
-        aqui, en el nucleo, para que ninguna interfaz tenga que repetirla.
-
-        `distrito` va APARTE de `direccion` a proposito: el equipo pidio
-        poder agrupar la carga por distrito, y para eso el campo tiene que
-        existir por si mismo. Si el distrito viajara embebido dentro de la
-        direccion, cada agrupacion dependeria de parsear texto libre.
-        """
+        """Registra un pedido individual."""
         error = self._validar_peso(peso)
 
         if error:
@@ -116,13 +81,7 @@ class RAPPIDOS:
         direcciones: Optional[Sequence[str]] = None,
         distritos: Optional[Sequence[str]] = None,
     ) -> ResultadoOperacion:
-        """Registra varios pedidos de una vez reutilizando la validacion.
-
-        Se recorre la lista completa en vez de llamar a `registrar` en
-        bucle, para no escribir el archivo 200 veces. Una sola escritura al
-        final es la diferencia entre milisegundos y segundos con carga
-        masiva, y es el motivo por el que esta funcion existe aparte.
-        """
+        """Registra varios pedidos de una vez reutilizando la validacion."""
         if not pesos:
             return ResultadoOperacion.error("No hay pesos para registrar.")
 
@@ -174,14 +133,7 @@ class RAPPIDOS:
         telefono: Optional[str] = None,
         distrito: Optional[str] = None,
     ) -> ResultadoOperacion:
-        """Corrige un pedido ya registrado.
-
-        Solo se modifican los campos que llegan informedos: `None` significa
-        "no tocar". Esa distincion importa porque el formulario de edicion
-        se rellena con los valores actuales del pedido, y un campo vacio
-        tiene que poder guardarse como vacio y no interpretarse como
-        "dejarlo como estaba".
-        """
+        """Corrige un pedido ya registrado."""
         objetivo = codigo.strip().upper()
         pedido = self.repositorio.obtener(objetivo)
 
@@ -221,17 +173,7 @@ class RAPPIDOS:
         distrito: Optional[str] = None,
         cliente: Optional[str] = None,
     ) -> ResultadoOperacion:
-        """Aplica la misma correccion a varios pedidos de una vez.
-
-        Es el caso de uso real en una tienda: "estos 40 pedidos son del mismo
-        cliente" o "este lote va a La Castilla". Editarlos uno por uno seria
-        lento y propenso a errores, y ademas escribiria el archivo 40 veces.
-
-        Se valida el peso UNA vez antes de tocar nada. Si fuera invalido, el
-        cambio se rechaza en bloque en lugar de aplicarse a los primeros y
-        fallar en el ultimo: un estado a medio cambiar es peor que no
-        cambiar nada.
-        """
+        """Aplica la misma correccion a varios pedidos de una vez."""
         if not codigos:
             return ResultadoOperacion.error("No se selecciono ningun pedido.")
 
@@ -275,17 +217,7 @@ class RAPPIDOS:
     def importar(
         self, nombre_archivo: str, contenido: bytes
     ) -> ResultadoOperacion:
-        """Analiza un archivo CSV, TXT o XLSX SIN registrar nada.
-
-        Devuelve la lista de pedidos que se importarian junto con el detalle
-        de las filas rechazadas, pero no toca el sistema. Quien llama decide
-        si confirma con `confirmar_importacion`.
-
-        La separacion en dos pasos responde a la observacion del equipo: si
-        la subida confirmara automaticamente, un archivo equivocado cargaria
-        pedidos que despues habria que borrar uno por uno. Con la vista
-        previa se ve "van 48 pedidos y 2 filas con error" ANTES de decidir.
-        """
+        """Analiza un archivo CSV, TXT o XLSX SIN registrar nada."""
         codigos = [
             f"{PREFIJO_CODIGO}{self.repositorio.contador + i:03d}"
             for i in range(6000)
@@ -311,13 +243,7 @@ class RAPPIDOS:
         return ResultadoOperacion.exito(mensaje, resultado)
 
     def confirmar_importacion(self, resultado: ResultadoImportacion) -> ResultadoOperacion:
-        """Registra de verdad los pedidos de una vista previa ya revisada.
-
-        Acepta el resultado que devolvio `importar` tal cual. Es la segunda
-        mitad del flujo en dos pasos y mantiene la responsabilidad en el
-        nucleo: la interfaz solo decide si confirmar, nunca escribe en el
-        almacen.
-        """
+        """Registra de verdad los pedidos de una vista previa ya revisada."""
         if resultado is None or not resultado.pedidos:
             return ResultadoOperacion.error("No hay pedidos para confirmar.")
 
@@ -332,10 +258,6 @@ class RAPPIDOS:
 
         return ResultadoOperacion.exito(mensaje, resultado)
 
-    # ================================================================
-    # CASOS DE USO: consulta
-    # ================================================================
-
     def listar(
         self,
         peso_min: Optional[float] = None,
@@ -346,17 +268,7 @@ class RAPPIDOS:
         campo: CampoOrden = CampoOrden.PESO,
         distrito: Optional[str] = None,
     ) -> List[Pedido]:
-        """Lista pedidos con filtros de peso y distrito, y orden opcional.
-
-        El filtro se aplica ANTES de ordenar: filtrar despues obligaria a
-        ordenar elementos que despues se descartan, que es trabajo perdido.
-
-        `campo` decide POR QUE se ordena. Si es el peso, se aplica el
-        algoritmo indicado en `orden`, que es lo que el curso evalua. Si es
-        el codigo o el distrito se usa el comparador nativo, porque los
-        algoritmos de conteo y cubetas necesitan enteros en un rango acotado
-        y esos dos campos son texto.
-        """
+        """Lista pedidos con filtros de peso y distrito, y orden opcional."""
         pedidos = self.repositorio.listar(solo_pendientes=solo_pendientes)
 
         if peso_min is not None:
@@ -380,13 +292,7 @@ class RAPPIDOS:
 
     @staticmethod
     def _clave_orden(campo: CampoOrden):
-        """Devuelve la funcion `key` para ordenar por el campo pedido.
-
-        El distrito se compara en minusculas y sin acentos para que "La
-        Castilla" y "la castilla" caigan en el mismo grupo al ordenar. Sin
-        esa normalizacion el ordenamiento alfabetico pondria cada variante
-        en un lado distinto de la lista, que es justo lo contrario de agrupar.
-        """
+        """Devuelve la funcion `key` para ordenar por el campo pedido."""
         if campo is CampoOrden.CODIGO:
             return lambda pedido: pedido.codigo
 
@@ -412,12 +318,7 @@ class RAPPIDOS:
         return limpio.strip()
 
     def buscar(self, codigo: str, usar_binaria: bool = True) -> ResultadoOperacion:
-        """Busca un pedido por codigo usando busqueda binaria o lineal.
-
-        El metodo se elige segun el caso: la busqueda binaria es O(log n)
-        pero EXIGE que la lista este ordenada, y el codigo se normaliza a
-        mayusculas porque el usuario puede escribir "p001".
-        """
+        """Busca un pedido por codigo usando busqueda binaria o lineal."""
         if not codigo or not codigo.strip():
             return ResultadoOperacion.error("Ingrese un codigo de pedido.")
 
@@ -445,12 +346,7 @@ class RAPPIDOS:
     def comparar_algoritmos(
         self, estrategia: Optional[EstrategiaOrden] = None, descendente: bool = False
     ) -> ResultadoOperacion:
-        """Mide todos los algoritmos de ordenamiento sobre los pendientes.
-
-        Si se indica una estrategia, devuelve ademas el detalle de como
-        quedo el ordenamiento con ese algoritmo, para poder auditar el
-        resultado y no solo el tiempo.
-        """
+        """Mide todos los algoritmos de ordenamiento sobre los pendientes."""
         pedidos = self.repositorio.listar(solo_pendientes=True)
 
         if not pedidos:
@@ -471,13 +367,7 @@ class RAPPIDOS:
         )
 
     def buscar_codigo_por_algoritmo(self, codigo: str) -> ResultadoOperacion:
-        """Ejecuta la MISMA busqueda con ambos algoritmos y compara.
-
-        Sirve para evidenciar la diferencia asintotica: la busqueda lineal
-        recorre hasta n elementos y la binaria solo log2(n). Con pocos
-        pedidos la diferencia es minima, y por eso hay que medirla con
-        volumen.
-        """
+        """Ejecuta la MISMA busqueda con ambos algoritmos y compara."""
         pendientes = self.repositorio.listar(solo_pendientes=False)
 
         if not pendientes:
@@ -495,10 +385,6 @@ class RAPPIDOS:
             }
         )
 
-    # ================================================================
-    # CASOS DE USO: salida
-    # ================================================================
-
     def planear(
         self,
         estrategia: EstrategiaReparto = EstrategiaReparto.PRIMERO_QUE_CABE,
@@ -506,11 +392,7 @@ class RAPPIDOS:
         objetivo: str = ObjetivoMochila.CANTIDAD,
         capacidad: float = CAPACIDAD_VEHICULO_KG,
     ) -> ResultadoOperacion:
-        """Simula la salida de UN viaje SIN modificar el sistema.
-
-        Devuelve un `PlanSalida` que la interfaz muestra para pedir
-        confirmacion. Nada se borra hasta que se llame a `confirmar_salida`.
-        """
+        """Simula la salida de UN viaje SIN modificar el sistema."""
         pendientes = self.repositorio.listar(solo_pendientes=True)
 
         if not pendientes:
@@ -540,16 +422,7 @@ class RAPPIDOS:
         objetivo: str = ObjetivoMochila.CANTIDAD,
         capacidad: float = CAPACIDAD_VEHICULO_KG,
     ) -> ResultadoOperacion:
-        """Simula el reparto completo en uno o varios viajes.
-
-        `viajes = 0` significa "todos los que hagan falta": es el valor por
-        defecto porque era justo lo que faltaba antes, un plan que solo
-        resolvia una mochila y dejaba el resto de los pedidos sin destino
-        visible. Con un numero mayor que cero se limita a esa cantidad.
-
-        Devuelve un `PlanCarga`, que ademas de la lista de viajes incluye
-        `no_asignados` con el motivo de cada pedido que no cupo.
-        """
+        """Simula el reparto completo en uno o varios viajes."""
         pendientes = self.repositorio.listar(solo_pendientes=True)
 
         if not pendientes:
@@ -594,12 +467,7 @@ class RAPPIDOS:
         return ResultadoOperacion.exito(mensaje, plan)
 
     def confirmar_carga(self, plan: PlanCarga) -> ResultadoOperacion:
-        """Despacha TODOS los viajes de un plan multi-viaje de una vez.
-
-        Los pedidos de cada viaje quedan `DESPACHADO` con su fecha, y la
-        salida se registra con el detalle de lo que llevo cada viaje. Es la
-        operacion que corresponde a "hoy salen tres viajes".
-        """
+        """Despacha TODOS los viajes de un plan multi-viaje de una vez."""
         if plan is None or not plan.viajes:
             return ResultadoOperacion.error("El plan no tiene viajes para despachar.")
 
@@ -668,13 +536,7 @@ class RAPPIDOS:
         )
 
     def confirmar_salida(self, plan: PlanSalida) -> ResultadoOperacion:
-        """Ejecuta el plan: marca los pedidos como despachados.
-
-        A diferencia de la version original, los pedidos NO se eliminan del
-        historial: pasan a estado DESPACHADO. Borrarlos hacia irrecoverable
-        la trazabilidad, que es justamente lo que un sistema de reparto
-        necesita para saber que entrego y cuando.
-        """
+        """Ejecuta el plan: marca los pedidos como despachados."""
         if not plan.seleccionados:
             return ResultadoOperacion.error("El plan no tiene pedidos para despachar.")
 
@@ -724,13 +586,7 @@ class RAPPIDOS:
         return list(reversed(self.repositorio.salidas[-limite:]))
 
     def detalle_salida(self, identificador: int) -> ResultadoOperacion:
-        """Devuelve una salida concreta con el detalle de lo que llevo.
-
-        Es el caso de uso que faltaba: tras confirmar, el historial solo
-        mostraba un numero de pedidos y un peso. Con esto se puede abrir
-        cada salida y ver pedido por pedido que salio, en que viaje y a que
-        distrito.
-        """
+        """Devuelve una salida concreta con el detalle de lo que llevo."""
         for salida in self.repositorio.salidas:
             if salida.id == identificador:
                 return ResultadoOperacion.exito(
@@ -756,10 +612,6 @@ class RAPPIDOS:
 
         return ResultadoOperacion.exito(f"Pedido {pedido.codigo} devuelto a pendientes.", pedido)
 
-    # ================================================================
-    # CASOS DE USO: mantenimiento
-    # ================================================================
-
     def eliminar(self, codigo: str) -> ResultadoOperacion:
         """Elimina un pedido de forma definitiva."""
         codigo = codigo.strip().upper()
@@ -784,12 +636,7 @@ class RAPPIDOS:
         return ResultadoOperacion.exito("Todos los datos fueron eliminados.")
 
     def estadisticas(self) -> ResultadoOperacion:
-        """Metricas del sistema para el panel de estadisticas.
-
-        Incluye el histograma de pesos, que es lo que permite ver de un
-        vistazo si la carga esta bien repartida o si se concentran pedidos
-        muy pesados.
-        """
+        """Metricas del sistema para el panel de estadisticas."""
         todos = self.repositorio.listar(solo_pendientes=False)
         pendientes = [p for p in todos if p.pendiente]
         despachados = [p for p in todos if not p.pendiente]
@@ -798,8 +645,21 @@ class RAPPIDOS:
         peso_pendientes = sum(p.peso for p in pendientes)
         peso_despachados = sum(p.peso for p in despachados)
 
-        viajes_necesarios = (
-            (peso_pendientes / CAPACIDAD_VEHICULO_KG) if peso_pendientes else 0.0
+        pesos_distrito = {}
+        sin_distrito = 0
+        for pedido in pendientes:
+            distrito = self._normalizar(pedido.distrito_efectivo)
+            if distrito:
+                pesos_distrito[distrito] = pesos_distrito.get(distrito, 0) + pedido.peso
+            else:
+                sin_distrito += 1
+        viajes_necesarios = sin_distrito + sum(
+            math.ceil(round(peso, 2) / CAPACIDAD_VEHICULO_KG)
+            for peso in pesos_distrito.values()
+        )
+        ocupacion = (
+            peso_pendientes / (viajes_necesarios * CAPACIDAD_VEHICULO_KG) * 100
+            if viajes_necesarios else 0
         )
 
         return ResultadoOperacion.exito("Estadisticas calculadas.", {
@@ -813,14 +673,10 @@ class RAPPIDOS:
                 "peso_maximo": max((p.peso for p in pendientes), default=0.0),
                 "peso_minimo": min((p.peso for p in pendientes), default=0.0),
                 "capacidad": CAPACIDAD_VEHICULO_KG,
-                # `math.ceil` redondea hacia arriba: si hacen falta 60.2
-                # viajes, hacen falta 61, porque un viaje parcial no
-                # transporta pedidos. Truncar dejaria pedidos sin
-                # entregar y sobraria capacidad en el ultimo viaje.
+
                 "viajes_necesarios": math.ceil(viajes_necesarios),
-                # El porcentaje de ocupacion se satura en 100: con reparto
-                # optimo la ultima viaje suele ir casi vacia.
-                "ocupacion_teorica": min(round(viajes_necesarios * 100, 1), 100.0),
+
+                "ocupacion_teorica": min(round(ocupacion, 1), 100.0),
             },
             "histograma": self._histograma(pendientes),
             "distribucion_distritos": self._distribucion_distritos(pendientes),
@@ -845,12 +701,7 @@ class RAPPIDOS:
         })
 
     def _histograma(self, pedidos: Sequence[Pedido], intervalos: int = 6) -> List[Dict[str, Any]]:
-        """Agrupa los pesos en intervalos iguales.
-
-        Se elige la cantidad de intervalos a partir del peso maximo, no de
-        forma fija, para que el grafico sea legible tanto con 5 pedidos como
-        con 2000.
-        """
+        """Agrupa los pesos en intervalos iguales."""
         if not pedidos:
             return []
 
@@ -877,7 +728,7 @@ class RAPPIDOS:
             fin = inicio + paso
             grupo["etiqueta"] = f"{inicio:.1f}"
             grupo["rango"] = f"{inicio:.1f} - {fin:.1f} kg"
-            # Suma kilos del tramo para enriquecer las graficas.
+
             pesos_tramo = [p for p in pedidos if p.peso >= inicio and p.peso < fin]
             if indice == intervalos - 1:
                 pesos_tramo = [p for p in pedidos if p.peso >= inicio and p.peso <= mayor]
@@ -886,18 +737,7 @@ class RAPPIDOS:
         return grupos
 
     def _distribucion_distritos(self, pedidos: Sequence[Pedido]) -> List[Dict[str, Any]]:
-        """Cuenta pedidos y kilos por distrito.
-
-        Usa el campo `distrito` ya separado de la direccion. Para los datos
-        anteriores a ese campo, `distrito_efectivo` deduce el valor del
-        texto tras la ultima coma, de modo que el agrupamiento tambien
-        funciona sobre los pedidos que ya estaban guardados.
-
-        Se agrupa por la version normalizada pero se MUESTRA la forma
-        original: asi "La Castilla" y "la castilla" cuentan como un solo
-        distrito sin que la pantalla muestre dos nombres distintos del mismo
-        lugar.
-        """
+        """Cuenta pedidos y kilos por distrito."""
         conteo: Dict[str, Dict[str, Any]] = {}
 
         for pedido in pedidos:
@@ -919,27 +759,14 @@ class RAPPIDOS:
 
         return totales[:10]
 
-    # ================================================================
-    # Utilidad interna
-    # ================================================================
-
     @staticmethod
     def _a_peso(peso: Any) -> float:
-        """Normaliza a peso en kg con dos decimales.
-
-        Delega en `_a_float` para que la consola y el importador de
-        archivos acepten exactamente los mismos formatos numericos.
-        """
+        """Normaliza a peso en kg con dos decimales."""
         return round(float(_a_float(peso)), 2)
 
     @staticmethod
     def _validar_peso(peso: Any) -> str:
-        """Valida el peso en el nucleo. Devuelve el error o cadena vacia.
-
-        Vive aqui, y no en la interfaz, a proposito: es una regla del
-        dominio, no una presentacion. Si se validara en el formulario, la
-        consola podria aceptar pedidos que la web rechaza.
-        """
+        """Valida el peso en el nucleo. Devuelve el error o cadena vacia."""
         if peso is None or str(peso).strip() == "":
             return "Debe ingresar el peso del pedido."
 

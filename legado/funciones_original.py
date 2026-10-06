@@ -1,14 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-Created on Mon Sep 21 21:31:31 2026
-
-@author: jeremy
-"""
+"""Modulo funciones_original."""
 
 import os
-
-
 
 pedidos = {}
 contador = 1
@@ -20,7 +14,7 @@ def registrar_pedido():
 
     if peso <= 0:
         print("El peso debe ser mayor a 0 kg.")
-        
+
     elif peso > 30:
         print("El peso debe de ser menor a 30 kg")
     else:
@@ -32,7 +26,7 @@ def registrar_pedido():
 
         print("Pedido registrado:", codigo)
 
-        contador += 1    
+        contador += 1
 
 def mostrar_pedidos():
     if not pedidos:
@@ -44,10 +38,8 @@ def mostrar_pedidos():
             print("Código:", codigo)
             print("Peso:", datos["peso"], "kg")
             print("-------------------------")
-    return        
-            
-    
-    
+    return
+
 def preparar_salida(cod_pri = None):
     if not pedidos:
         print("No hay pedidos pendientes.")
@@ -56,23 +48,23 @@ def preparar_salida(cod_pri = None):
     capacidad = 30
     peso_actual = 0
     pedidos_salida = {}
-    
+
     if cod_pri is not None:
         peso_prio = pedidos[cod_pri]["peso"]
-        
+
         pedidos_salida[cod_pri] = (pedidos[cod_pri])
         peso_actual += peso_prio
-        
+
         print("\n Pedido prioritario")
-        print(cod_pri, " - ", peso_prio, "kg")     
+        print(cod_pri, " - ", peso_prio, "kg")
 
     pedidos_ordenados = ordenar_por_peso_burbuja(pedidos)
 
     for codigo, datos in pedidos_ordenados:
-        
+
         if codigo == cod_pri:
             continue
-                
+
         peso = datos["peso"]
 
         if peso_actual + peso <= capacidad:
@@ -99,40 +91,39 @@ def preparar_salida(cod_pri = None):
         print("Pedidos preparados correctamente.")
 
     else:
-        print("La salida de pedidos fue cancelada.")    
-    
+        print("La salida de pedidos fue cancelada.")
 
 def busqueda_codigo(pedidos, codigo):
     codigos = list(pedidos.keys())
-    
+
     inicio = 0
     fin =len(codigos) - 1
-    
+
     while inicio <= fin:
         mitad = (inicio + fin )//2
-        
+
         if codigos[mitad] == codigo:
             return codigos[mitad]
-        
+
         elif codigos[mitad] < codigo:
             inicio = mitad + 1
-            
+
         else:
-            fin = mitad - 1 
-            
+            fin = mitad - 1
+
     return None
-    
+
 def pedido_prioridad():
     if pedidos == {}:
         print("No hay pedidos registrados")
         return
-    
+
     codigo = input("Ingrese el código del pedido prioritario").upper()
-    
+
     bus_cod = busqueda_codigo(pedidos, codigo)
-    
+
     if bus_cod is not None:
-        
+
         print("\n Pedido encontrado")
         print("Código de pedido prioritario: ", bus_cod)
         print("Peso ", pedidos[bus_cod]["peso"],"kg")
@@ -140,8 +131,7 @@ def pedido_prioridad():
         preparar_salida(bus_cod)
     else:
         print("\n No se encontró el pedido")
-        
-    
+
 def ordenar_por_peso_burbuja(pedidos):
     pedidos_ordenados = list(pedidos.items())
 
@@ -157,8 +147,7 @@ def ordenar_por_peso_burbuja(pedidos):
                     pedidos_ordenados[j]
                 )
 
-    return pedidos_ordenados    
-
+    return pedidos_ordenados
 
 def limpiar_consola():
     os.system("cls" if os.name == "nt" else "clear")

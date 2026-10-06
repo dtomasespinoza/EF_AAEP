@@ -1,16 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-Created on Mon Sep 21 21:12:01 2026
-
-@author: jeremy
-"""
-
+"""Modulo main_original."""
 
 import os
 from funciones import *
-
-
 
 while True:
 
@@ -32,7 +25,7 @@ while True:
     elif opcion == "3":
         print("Preparar Pedido")
         preparar_salida()
-        
+
     elif opcion == "4":
         print("Pedido por prioridad")
         pedido_prioridad()

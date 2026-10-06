@@ -11,25 +11,25 @@
 
 <div class="rejilla rejilla-4 mb-2">
   <div class="indicador indicador--primario">
-    <div class="indicador__etiqueta">📦 Pedidos pendientes</div>
+    <div class="indicador__etiqueta"> Pedidos pendientes</div>
     <div class="indicador__valor" id="m-pendientes">—</div>
     <div class="indicador__nota" id="m-pendientes-nota">Cargando…</div>
   </div>
 
   <div class="indicador indicador--informacion">
-    <div class="indicador__etiqueta">⚖️ Peso por despachar</div>
+    <div class="indicador__etiqueta"> Peso por despachar</div>
     <div class="indicador__valor" id="m-peso">—</div>
     <div class="indicador__nota" id="m-viajes-nota">—</div>
   </div>
 
   <div class="indicador indicador--exito">
-    <div class="indicador__etiqueta">🚚 Salidas realizadas</div>
+    <div class="indicador__etiqueta"> Salidas realizadas</div>
     <div class="indicador__valor" id="m-salidas">—</div>
     <div class="indicador__nota" id="m-salidas-nota">—</div>
   </div>
 
   <div class="indicador indicador--alerta">
-    <div class="indicador__etiqueta">📊 Peso promedio</div>
+    <div class="indicador__etiqueta"> Peso promedio</div>
     <div class="indicador__valor" id="m-promedio">—</div>
     <div class="indicador__nota" id="m-rango">—</div>
   </div>
@@ -39,7 +39,7 @@
 
   <div class="tarjeta">
     <div class="tarjeta__titulo">
-      <h3>➕ Registrar pedido</h3>
+      <h3> Registrar pedido</h3>
     </div>
 
     <form id="form-registro" class="rejilla" style="gap:14px">
@@ -86,7 +86,7 @@
 
   <div class="tarjeta">
     <div class="tarjeta__titulo">
-      <h3>📈 Proximos pedidos</h3>
+      <h3> Proximos pedidos</h3>
       <a href="{{ url_for('pagina_pedidos') }}" class="boton boton--fantasma boton--pequeno">
         Ver todos
       </a>
@@ -101,7 +101,7 @@
 
   <div class="tarjeta">
     <div class="tarjeta__titulo">
-      <h3>📊 Distribucion de pesos</h3>
+      <h3> Distribucion de pesos</h3>
     </div>
     <div class="columnas" id="histograma"></div>
     <div class="ejes">
@@ -113,7 +113,7 @@
 
   <div class="tarjeta">
     <div class="tarjeta__titulo">
-      <h3>🕘 Ultimas salidas</h3>
+      <h3> Ultimas salidas</h3>
       <a href="{{ url_for('pagina_salidas') }}" class="boton boton--fantasma boton--pequeno">
         Preparar salida
       </a>
@@ -129,7 +129,6 @@
 <script>
 const CAPACIDAD = {{ capacidad }};
 
-/** Pinta los cuatro indicadores de la parte superior. */
 function pintarIndicadores(resumen, totalSalidas) {
   $("#m-pendientes").textContent = entero(resumen.pendientes);
   $("#m-pendientes-nota").textContent = resumen.total_pedidos === resumen.pendientes
@@ -138,7 +137,7 @@ function pintarIndicadores(resumen, totalSalidas) {
 
   $("#m-peso").textContent = peso(resumen.peso_pendientes);
   $("#m-viajes-nota").textContent = resumen.viajes_necesarios > 0
-    ? `Requieren ${entero(resumen.viajes_necesarios)} viajes`
+    ? `Mínimo ${entero(resumen.viajes_necesarios)} viajes por distrito`
     : "Nada por despachar";
 
   $("#m-salidas").textContent = entero(totalSalidas);
@@ -152,7 +151,6 @@ function pintarIndicadores(resumen, totalSalidas) {
     : "Sin datos";
 }
 
-/** Dibuja el histograma de pesos como columnas proporcionales. */
 function pintarHistograma(bloques) {
   const contenedor = vaciar($("#histograma"));
 
@@ -172,8 +170,6 @@ function pintarHistograma(bloques) {
   for (const bloque of bloques) {
     const columna = elemento("div", { clase: "columna" });
 
-    // La altura es relativa al bloque mas poblado, para que la columna mas
-    // alta ocupe siempre el 100% del espacio disponible.
     const altura = Math.max((bloque.cantidad / maximo) * 100, bloque.cantidad > 0 ? 4 : 1);
 
     columna.append(
@@ -193,22 +189,19 @@ function pintarHistograma(bloques) {
   $("#histograma-max").textContent = `${bloques[bloques.length - 1].etiqueta} kg`;
 }
 
-/** Lista los ultimos pedidos dados de alta, del mas reciente al mas antiguo. */
 function pintarProximos(pedidos) {
   const contenedor = vaciar($("#lista-proximos"));
 
   if (pedidos.length === 0) {
     mostrarVacio(
       contenedor,
-      "📭",
+      "",
       "Sin pedidos pendientes",
       "Registra un pedido o importa un archivo desde la carga masiva."
     );
     return;
   }
 
-  // Se ordena por codigo descendente: el codigo es correlativo, asi que el
-  // mayor es el mas reciente.
   const recientes = [...pedidos]
     .sort((a, b) => b.codigo.localeCompare(a.codigo))
     .slice(0, 7);
@@ -237,14 +230,13 @@ function pintarProximos(pedidos) {
   }
 }
 
-/** Muestra las salidas ya confirmadas. */
 function pintarSalidas(salidas) {
   const contenedor = vaciar($("#ultimas-salidas"));
 
   if (salidas.length === 0) {
     mostrarVacio(
       contenedor,
-      "🚚",
+      "",
       "Ningun viaje realizado",
       "Cuando confirmes una salida, quedara registrada aqui."
     );

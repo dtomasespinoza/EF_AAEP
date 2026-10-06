@@ -16,25 +16,25 @@
 
 <div class="rejilla rejilla-4 mb-2">
   <div class="indicador indicador--primario">
-    <div class="indicador__etiqueta">📦 Total de pedidos</div>
+    <div class="indicador__etiqueta"> Total de pedidos</div>
     <div class="indicador__valor" id="e-total">—</div>
     <div class="indicador__nota" id="e-total-nota">—</div>
   </div>
 
   <div class="indicador indicador--exito">
-    <div class="indicador__etiqueta">🚚 Viajes necesarios</div>
+    <div class="indicador__etiqueta"> Viajes mínimos por distrito</div>
     <div class="indicador__valor" id="e-viajes">—</div>
     <div class="indicador__nota" id="e-viajes-nota">—</div>
   </div>
 
   <div class="indicador indicador--informacion">
-    <div class="indicador__etiqueta">⚖️ Peso promedio</div>
+    <div class="indicador__etiqueta"> Peso promedio</div>
     <div class="indicador__valor" id="e-promedio">—</div>
     <div class="indicador__nota" id="e-rango">—</div>
   </div>
 
   <div class="indicador indicador--alerta">
-    <div class="indicador__etiqueta">✅ Entregados</div>
+    <div class="indicador__etiqueta"> Entregados</div>
     <div class="indicador__valor" id="e-entregados">—</div>
     <div class="indicador__nota" id="e-entregados-nota">—</div>
   </div>
@@ -44,7 +44,7 @@
 
   <div class="tarjeta">
     <div class="tarjeta__titulo">
-      <h3>📊 Distribución de pesos</h3>
+      <h3> Distribución de pesos</h3>
       <span class="insignia insignia--primaria" id="e-muestra">0</span>
     </div>
 
@@ -63,7 +63,7 @@
 
   <div class="tarjeta">
     <div class="tarjeta__titulo">
-      <h3>🗺️ Pedidos por zona</h3>
+      <h3> Pedidos por zona</h3>
     </div>
     <div id="zonas"></div>
     <div class="tarjeta__pie">
@@ -76,7 +76,7 @@
 
 <div class="tarjeta mb-2">
   <div class="tarjeta__titulo">
-    <h3>📈 Rendimiento de los algoritmos de ordenamiento</h3>
+    <h3> Rendimiento de los algoritmos de ordenamiento</h3>
     <button class="boton boton--pequeno" id="btn-medir">Ejecutar mediciones</button>
   </div>
 
@@ -87,12 +87,12 @@
       cubetas aprovechan que el peso tiene un rango acotado de 0 a 30 kg.</p>
     </div>
     <div class="aviso aviso--exito">
-      <span class="aviso__icono">⚡</span>
+      <span class="aviso__icono"></span>
       <p>La burbuja es O(n²): al duplicar los pedidos, las comparaciones se
       cuadruplican. QuickSort es O(n log n), casi lineal.</p>
     </div>
     <div class="aviso aviso--alerta">
-      <span class="aviso__icono">⚖</span>
+      <span class="aviso__icono"></span>
       <p>El conteo es O(n + k), con k el rango de valores. En este dominio
       k son 3000 centesimas: constante y pequena.</p>
     </div>
@@ -104,7 +104,7 @@
 
 <div class="tarjeta">
   <div class="tarjeta__titulo">
-    <h3>🚚 Últimas salidas</h3>
+    <h3> Últimas salidas</h3>
   </div>
   <div class="tabla-caja">
     <div class="tabla-scroll">
@@ -127,7 +127,7 @@
 
 <div class="tarjeta mt-2">
   <div class="tarjeta__titulo">
-    <h3>🗃️ Almacenamiento</h3>
+    <h3> Almacenamiento</h3>
   </div>
   <div id="almacen" class="rejilla rejilla-4" style="gap:13px"></div>
   <div class="tarjeta__pie">
@@ -205,7 +205,7 @@ function pintarZonas(zonas) {
   const contenedor = vaciar($("#zonas"));
 
   if (!zonas || zonas.length === 0) {
-    mostrarVacio(contenedor, "🗺️", "Sin zonas", "Registra pedidos con direccion para ver el reparto geografico.");
+    mostrarVacio(contenedor, "", "Sin zonas", "Registra pedidos con direccion para ver el reparto geografico.");
     return;
   }
 
@@ -234,7 +234,7 @@ function pintarSalidas(salidas) {
   const cuerpo = $("#cuerpo-salidas");
 
   if (!salidas || salidas.length === 0) {
-    mostrarVacio(cuerpo, "🚚", "Sin salidas", "Los viajes confirmados apareceran aqui.");
+    mostrarVacio(cuerpo, "", "Sin salidas", "Los viajes confirmados apareceran aqui.");
     return;
   }
 
@@ -283,7 +283,7 @@ function pintarAlgoritmos(metricas) {
   const contenedor = vaciar($("#barras-algoritmos"));
 
   if (!metricas || metricas.length === 0) {
-    mostrarVacio(contenedor, "📊", "Sin datos", "Registra pedidos pendientes y vuelve a medir.");
+    mostrarVacio(contenedor, "", "Sin datos", "Registra pedidos pendientes y vuelve a medir.");
     return;
   }
 

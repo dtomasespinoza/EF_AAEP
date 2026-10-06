@@ -1,27 +1,4 @@
-"""
- nucleo.algoritmos
- =================
-
- Implementaciones clasicas de ordenamiento y busqueda, escritas a mano y
- "instrumentadas": ademas de devolver el resultado, cada algoritmo reporta
- cuantas comparaciones e intercambios realizo y cuanto tardo.
-
- Para que la medicion sea valida, todos los algoritmos se invocan sobre una
- COPIA de la misma lista de entrada: si no, el segundo algoritmo recibiria la
- lista ya ordenada y mediria un caso trivial (mejor caso) en vez del caso
- promedio.
-
- Complejidades Big-O (n = cantidad de pedidos):
-
-    Burbuja      O(n^2) tiempo / O(1) memoria extra
-    Insercion    O(n^2) tiempo / O(1) memoria extra
-    QuickSort    O(n log n) promedio, O(n^2) peor caso / O(log n) pila
-    Conteo       O(n + k) tiempo, k = rango de valores / O(n + k) memoria
-    Cubetas      O(n + k) promedio / O(n + k) memoria
-    Nativo       O(n log n) (TimSort)
-
- Este modulo es NUCLEO PURO: no imprime nada y no depende de la interfaz.
-"""
+"""Algoritmos de ordenamiento, busqueda y sus mediciones."""
 
 from __future__ import annotations
 
@@ -31,18 +8,7 @@ from typing import Any, Callable, List, Sequence
 
 from .modelos import EstrategiaOrden
 
-
-# Tope de posiciones que el ordenamiento por conteo esta dispuesto a reservar.
-# El dominio de RAPPIDOS (pesos de hasta 30 kg con dos decimales) necesita solo
-# unas 3000, asi que este limite nunca se alcanza en la practica: es una red de
-# seguridad para datos inesperados.
 MAXIMO_RANGO_CONTEO = 500_000
-
-
-# --------------------------------------------------------------------------
-# Metrica de ejecucion
-# --------------------------------------------------------------------------
-
 
 @dataclass
 class Metrica:
@@ -56,12 +22,7 @@ class Metrica:
 
     @property
     def pasos_por_elemento(self) -> float:
-        """Intensidad del algoritmo: pasos / elemento.
-
-        Normalizar respecto a n es lo que revela el crecimiento asintotico:
-        en un O(n^2) esta razon crece de forma lineal con n, mientras que en
-        un O(n log n) se mantiene casi plana.
-        """
+        """Intensidad del algoritmo: pasos / elemento."""
         if self.elementos == 0:
             return 0.0
         return (self.comparaciones + self.intercambios) / self.elementos
@@ -76,7 +37,6 @@ class Metrica:
             "pasos_por_elemento": round(self.pasos_por_elemento, 2),
         }
 
-
 @dataclass
 class ResultadoOrden:
     """Lista ya ordenada junto con la metrica de como se produjo."""
@@ -84,14 +44,8 @@ class ResultadoOrden:
     elementos: List[Any]
     metrica: Metrica
 
-
 class Contador:
-    """Contador mutable compartido por los algoritmos.
-
-    Se pasa por referencia a las funciones auxiliares para poder contar
-    comparaciones reales sin inflar la firma de cada una. Al ser un objeto
-    mutable, las funciones recursivas pueden actualizarlo sin `nonlocal`.
-    """
+    """Contador mutable compartido por los algoritmos."""
 
     __slots__ = ("comparaciones", "intercambios")
 
@@ -105,15 +59,8 @@ class Contador:
     def intercambiar(self) -> None:
         self.intercambios += 1
 
-
 class Cronometro:
-    """Mide el tiempo de una seccion de codigo con `perf_counter`.
-
-    Se usa un objeto context manager para no repetir el par
-    inicio/fin en cada algoritmo. `perf_counter` es el reloj de mayor
-    resolucion de la biblioteca estandar y es monotono, a diferencia de
-    `time.time`.
-    """
+    """Mide el tiempo de una seccion de codigo con `perf_counter`."""
 
     __slots__ = ("_inicio", "milisegundos")
 
@@ -129,35 +76,8 @@ class Cronometro:
         self.milisegundos = (time.perf_counter() - self._inicio) * 1000
         return False
 
-
-# --------------------------------------------------------------------------
-# Algoritmos de ordenamiento
-# --------------------------------------------------------------------------
-
-
 def ordenamiento_burbuja(elementos: Sequence[Any], clave: Callable[[Any], Any]) -> ResultadoOrden:
-    """Ordenamiento por burbuja con bandera de corte temprano.
-
-    Variante clasica: recorre la lista comparando vecinos e intercambiandolos
-    si estan desordenados, arrastrando asi el valor mayor hacia el final en
-    cada pasada.
-
-    La bandera `ordenado` es la unica optimizacion frente a la version
-    ingenua: si una pasada completa no produce ningun intercambio, la lista
-    ya esta ordenada y se rompe el ciclo. En el mejor caso (lista ya
-    ordenada) el algoritmo baja de O(n^2) a O(n), que es el caso mas
-    frecuente en RAPPIDOS porque los pedidos llegan casi ordenados por peso.
-
-    Parametros
-    ----------
-    elementos : secuencia de datos a ordenar. No se modifica.
-    clave : funcion que extrae el valor de comparacion, por ejemplo
-            `lambda p: p.peso`.
-
-    Retorna
-    -------
-    ResultadoOrden con la lista ordenada (copia) y su metrica de ejecucion.
-    """
+    """Ordenamiento por burbuja con bandera de corte temprano."""
     contador = Contador()
 
     with Cronometro() as cronometro:
@@ -187,18 +107,8 @@ def ordenamiento_burbuja(elementos: Sequence[Any], clave: Callable[[Any], Any]) 
     )
     return ResultadoOrden(datos, metrica)
 
-
 def ordenamiento_insercion(elementos: Sequence[Any], clave: Callable[[Any], Any]) -> ResultadoOrden:
-    """Ordenamiento por insercion.
-
-    Construye la lista ordenada de izquierda a derecha: en cada posicion i
-    toma el elemento y lo desplaza hacia la izquierda hasta encontrar su
-    lugar. Es el algoritmo natural cuando los datos llegan casi ordenados, y
-    es la etapa de umbral de TimSort.
-
-    A diferencia de QuickSort, es estable: dos elementos con la misma clave
-    conservan su orden relativo.
-    """
+    """Ordenamiento por insercion."""
     contador = Contador()
 
     with Cronometro() as cronometro:
@@ -230,22 +140,8 @@ def ordenamiento_insercion(elementos: Sequence[Any], clave: Callable[[Any], Any]
     )
     return ResultadoOrden(datos, metrica)
 
-
 def ordenamiento_quicksort(elementos: Sequence[Any], clave: Callable[[Any], Any]) -> ResultadoOrden:
-    """QuickSort con particion de Lomuto.
-
-    Elige un pivote (el ultimo elemento) y reparte la lista en dos: los
-    menores a la izquierda, los mayores o iguales a la derecha. Luego repite
-    el proceso sobre cada mitad (divide y venceras).
-
-    Tomar el ultimo elemento como pivote y trabajar sobre sublistas es la
-    version didactica mas simple; su contraprestacion es que una lista ya
-    ORDENADA degrada a O(n^2). El caso promedio de esta aplicacion (pesos
-    aleatorios) no sufre esa degradacion.
-
-    La recursion ocupa O(log n) en promedio, porque la particion deja las
-    dos mitades balanceadas.
-    """
+    """QuickSort con particion de Lomuto."""
     contador = Contador()
 
     with Cronometro() as cronometro:
@@ -260,7 +156,6 @@ def ordenamiento_quicksort(elementos: Sequence[Any], clave: Callable[[Any], Any]
         milisegundos=cronometro.milisegundos,
     )
     return ResultadoOrden(datos, metrica)
-
 
 def _quicksort(
     datos: List[Any],
@@ -277,7 +172,6 @@ def _quicksort(
 
     _quicksort(datos, bajo, pivote_indice - 1, clave, contador)
     _quicksort(datos, pivote_indice + 1, alto, clave, contador)
-
 
 def _particionar(
     datos: List[Any],
@@ -305,20 +199,8 @@ def _particionar(
 
     return i + 1
 
-
 def _decimales(valor: Any, maximo: int = 6) -> int:
-    """Cuantos decimales tiene un numero, hasta un tope.
-
-    El conteo por conteo necesita convertir cada valor en un indice entero.
-    Si los pesos vienen en kilos con dos decimales, el indice es el peso
-    multiplicado por 100; pero hay que SABER cuantos decimales usar, y eso
-    no se puede suponer.
-
-    Se formatea con precision fija y se cuentan los decimales, en vez de
-    usar `str(0.1 + 0.2)`, que daria 16 decimales por el error de coma
-    flotante y reservaria una memoria desmedida. El tope de 6 decimales
-    evita que un dato raro construya un arreglo gigantesco.
-    """
+    """Cuantos decimales tiene un numero, hasta un tope."""
     texto = f"{float(valor):.10f}".rstrip("0")
 
     if "." not in texto:
@@ -326,31 +208,8 @@ def _decimales(valor: Any, maximo: int = 6) -> int:
 
     return min(len(texto.split(".")[1]), maximo)
 
-
 def ordenamiento_conteo(elementos: Sequence[Any], clave: Callable[[Any], Any]) -> ResultadoOrden:
-    """Ordenamiento por conteo.
-
-    Aprovcha que los pesos de un pedido viven en un rango acotado: de 0 a 30
-    kg, es decir de 0 a 3000 centesimas de kilogramo. Cuenta cuantas veces
-    aparece cada peso y luego reconstruye la lista recorriendo el rango.
-
-    Es el unico algoritmo presente con complejidad O(n + k) GARANTIZADA (no
-    solo promedio), a cambio de consumir O(k) memoria extra, donde k es el
-    rango de valores.
-
-    En el dominio de RAPPIDOS es el algoritmo adecuado, porque el peso ya se
-    maneja como entero en centesimas: no hay error de redondeo al usarlo
-    como indice de un arreglo.
-
-    Detalle de implementacion: los indices se calculan sobre el peso
-    MULTIPLICADO POR 10^decimales, no con `int(peso)`. Si se truncara cada
-    peso directamente, 8.21 kg y 8.71 kg cairian en la MISMA posicion y el
-    orden final seria incorrecto: es el error clasico de aplicar conteo
-    sobre datos con decimales sin escalar antes.
-
-    Si el rango resultara desmedido, se delega en cubetas, que tambien es
-    O(n + k) promedio pero no reserva memoria para todo el rango.
-    """
+    """Ordenamiento por conteo."""
     contador = Contador()
 
     with Cronometro() as cronometro:
@@ -389,19 +248,8 @@ def ordenamiento_conteo(elementos: Sequence[Any], clave: Callable[[Any], Any]) -
     )
     return ResultadoOrden(ordenados, metrica)
 
-
 def ordenamiento_cubetas(elementos: Sequence[Any], clave: Callable[[Any], Any]) -> ResultadoOrden:
-    """Ordenamiento por cubetas (bucket sort) con distribucion uniforme.
-
-    Reparte los elementos en `n` cubetas segun su posicion relativa dentro
-    del rango [min, max], ordena cada cubeta con insercion y concatena.
-
-    Es O(n + k) en promedio y degrada a O(n^2) cuando todos los valores caen
-    en una misma cubeta. La diferencia con el ordenamiento por conteo esta
-    en el tamano del arreglo auxiliar: aqui es n (cantidad de elementos),
-    mientras que en conteo es k (rango de valores). Por eso conteo es
-    preferible en RAPPIDOS, donde el rango es de solo 3000 valores.
-    """
+    """Ordenamiento por cubetas (bucket sort) con distribucion uniforme."""
     contador = Contador()
 
     with Cronometro() as cronometro:
@@ -458,17 +306,8 @@ def ordenamiento_cubetas(elementos: Sequence[Any], clave: Callable[[Any], Any]) 
     )
     return ResultadoOrden(ordenados, metrica)
 
-
 def ordenamiento_nativo(elementos: Sequence[Any], clave: Callable[[Any], Any]) -> ResultadoOrden:
-    """Linea base: `sorted()` de Python, que internamente usa TimSort.
-
-    No se implementa a mano, pero se mide con el mismo criterio que los
-    demas. TimSort combina insercion para bloques pequenos con merge para
-    bloques grandes, y por eso es mas rapido que QuickSort puro en el caso
-    promedio. Notar que su numero de comparaciones es una ESTIMACION
-    analitica (n * log2 n), porque el codigo interno de CPython es nativo y
-    no expone un contador.
-    """
+    """Linea base: `sorted()` de Python, que internamente usa TimSort."""
     with Cronometro() as cronometro:
         datos = sorted(elementos, key=clave)
 
@@ -482,22 +321,14 @@ def ordenamiento_nativo(elementos: Sequence[Any], clave: Callable[[Any], Any]) -
     )
     return ResultadoOrden(datos, metrica)
 
-
 def _comparaciones_estimadas_nativas(total: int) -> int:
-    """Estima las comparaciones de un ordenamiento O(n log n) clasico.
-
-    Se usa `int(n * log2(n))`, que se obtiene al equilibrar los niveles del
-    arbol de decision. Solo aplica a TimSort, cuyo contador interno no es
-    accesible desde Python.
-    """
+    """Estima las comparaciones de un ordenamiento O(n log n) clasico."""
     if total < 2:
         return total
 
     niveles = total.bit_length() - 1
     return total * max(niveles, 1)
 
-
-#: Tabla de despacho: la interfaz elige por nombre, nunca por un numero.
 ALGORITMOS = {
     EstrategiaOrden.BURBUJA: ordenamiento_burbuja,
     EstrategiaOrden.INSERCION: ordenamiento_insercion,
@@ -507,19 +338,13 @@ ALGORITMOS = {
     EstrategiaOrden.NATIVO: ordenamiento_nativo,
 }
 
-
 def ordenar(
     elementos: Sequence[Any],
     clave: Callable[[Any], Any],
     estrategia: EstrategiaOrden,
     descendente: bool = False,
 ) -> ResultadoOrden:
-    """Punto de entrada unico para ordenar cualquier secuencia.
-
-    Centraliza la eleccion del algoritmo y el sentido de orden, de modo que
-    ninguna otra capa del sistema tenga que conocer la firma de cada
-    implementacion.
-    """
+    """Punto de entrada unico para ordenar cualquier secuencia."""
     resultado = ALGORITMOS[estrategia](elementos, clave)
 
     if descendente:
@@ -528,19 +353,12 @@ def ordenar(
 
     return resultado
 
-
 def comparar_algoritmos(
     elementos: Sequence[Any],
     clave: Callable[[Any], Any],
     descendente: bool = False,
 ) -> List[Metrica]:
-    """Ejecuta TODOS los algoritmos sobre la misma entrada y devuelve metricas.
-
-    Cada algoritmo recibe `list(elementos)`, es decir una copia propia. Si se
-    compartiera la misma lista, el primero en ejecutarse la dejaria ordenada
-    y los demas medirian el mejor caso en lugar del caso promedio: la
-    comparacion seria invalida.
-    """
+    """Ejecuta TODOS los algoritmos sobre la misma entrada y devuelve metricas."""
     metricas: List[Metrica] = []
 
     for estrategia in EstrategiaOrden:
@@ -548,12 +366,6 @@ def comparar_algoritmos(
         metricas.append(resultado.metrica)
 
     return metricas
-
-
-# --------------------------------------------------------------------------
-# Algoritmos de busqueda
-# --------------------------------------------------------------------------
-
 
 @dataclass
 class ResultadoBusqueda:
@@ -573,18 +385,8 @@ class ResultadoBusqueda:
             "algoritmo": self.algoritmo,
         }
 
-
 def busqueda_lineal(elementos: Sequence[Any], objetivo: Any, clave: Callable[[Any], Any]) -> ResultadoBusqueda:
-    """Busqueda lineal o secuencial.
-
-    Recorre la lista comparando cada elemento con el objetivo, uno por uno y
-    de principio a fin. No exige ningun orden previo, pero su peor caso es
-    O(n): puede terminar revisando los n elementos.
-
-    Se conserva porque es la unica opcion valida cuando la lista no esta
-    ordenada, y sirve de referencia para medir la ventaja asintotica de la
-    busqueda binaria.
-    """
+    """Busqueda lineal o secuencial."""
     contador = Contador()
     total = len(elementos)
 
@@ -598,23 +400,8 @@ def busqueda_lineal(elementos: Sequence[Any], objetivo: Any, clave: Callable[[An
 
     return ResultadoBusqueda(False, -1, None, contador.comparaciones, "Lineal")
 
-
 def busqueda_binaria(elementos: Sequence[Any], objetivo: Any, clave: Callable[[Any], Any]) -> ResultadoBusqueda:
-    """Busqueda binaria iterativa. PRECONDICION: la lista debe estar ordenada.
-
-    En cada paso compara el objetivo con el elemento del medio y descarta
-    la mitad donde el objetivo no puede encontrarse: si el objetivo es
-    mayor, busca en la mitad derecha; si es menor, en la izquierda.
-
-    Complejidad O(log n): en lugar de revisar n elementos hace cerca de
-    log2(n) comparaciones. Con 1 000 pedidos revisa unas 10, y con un
-    millon unas 20. Esa diferencia asintotica es la que la vuelve superior
-    a la lineal cuando se repite la busqueda muchas veces.
-
-    El intervalo se mantiene cerrado [inicio, fin], y `mitad = (inicio +
-    fin) // 2` evita el desbordamiento de numero entero que produciria
-    `(inicio + fin) / 2` en otros lenguajes.
-    """
+    """Busqueda binaria iterativa. PRECONDICION: la lista debe estar ordenada."""
     inicio = 0
     fin = len(elementos) - 1
     comparaciones = 0
@@ -636,7 +423,6 @@ def busqueda_binaria(elementos: Sequence[Any], objetivo: Any, clave: Callable[[A
 
     return ResultadoBusqueda(False, -1, None, comparaciones, "Binaria")
 
-
 def busqueda_lineal_codigo(pedidos: Sequence[Any], codigo: str) -> ResultadoBusqueda:
     """Busqueda lineal por codigo de pedido. No exige orden previo."""
     comparaciones = 0
@@ -651,19 +437,8 @@ def busqueda_lineal_codigo(pedidos: Sequence[Any], codigo: str) -> ResultadoBusq
 
     return ResultadoBusqueda(False, -1, None, comparaciones, "Lineal")
 
-
 def busqueda_binaria_codigo(pedidos: Sequence[Any], codigo: str) -> ResultadoBusqueda:
-    """Busqueda binaria por codigo, sobre la lista ORDENADA por codigo.
-
-    Los codigos tienen el formato P001, P002, ... con relleno de ceros a la
-    izquierda, de modo que el orden alfabetico coincide con el orden
-    numerico y la busqueda binaria es aplicable.
-
-    Si se quitara el relleno (P1, P2, P10) el orden alfabetico dejaria de
-    coincidir con el numerico, la precondicion se violaria y la busqueda
-    binaria devolveria resultados incorrectos. Esa es la razon del formato
-    `P%03d` y no es un detalle cosmetico.
-    """
+    """Busqueda binaria por codigo, sobre la lista ORDENADA por codigo."""
     ordenados = sorted(pedidos, key=lambda pedido: pedido.codigo)
     resultado = busqueda_binaria(ordenados, codigo, lambda pedido: pedido.codigo)
     resultado.algoritmo = "Binaria"

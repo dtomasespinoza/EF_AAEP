@@ -117,7 +117,7 @@ class Pedido:
     fecha_registro: str = ""
     fecha_despacho: str = ""
 
-    tarifas: Optional[Dict[str, float]] = field(default=None, repr=False, compare=False)
+    tarifas: Optional[Dict[str, Optional[float]]] = field(default=None, repr=False, compare=False)
 
     @property
     def peso_centavos(self) -> int:

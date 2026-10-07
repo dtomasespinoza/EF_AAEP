@@ -19,7 +19,7 @@ def cotizar(peso, distrito, tarifas=None):
     if clave == "santiago de surco":
         clave = "surco"
     for nombre, tarifa in tarifas.items():
-        if clave == normalizar(nombre):
+        if clave == normalizar(nombre) and tarifa is not None:
             costo = (Decimal(str(peso)) * Decimal(str(tarifa))).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
             return {"tarifa_kg": tarifa, "costo_envio": float(costo)}
     return {"tarifa_kg": None, "costo_envio": None}

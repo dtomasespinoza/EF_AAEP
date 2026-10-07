@@ -428,11 +428,17 @@ def _parece_encabezado(fila: Sequence[str]) -> bool:
     )
 
 def plantilla_csv() -> str:
-    """Contenido de ejemplo para que el usuario vea el formato."""
+    """Ejemplos ficticios con distritos y avenidas de Lima, solo ASCII."""
     return (
         "Peso,Distrito,Direccion,Cliente,Telefono\n"
-        "2.50,La Castilla,Calle 10 #3-22,Ana García,3001234567\n"
-        "18.00,El Cedro,Carrera 45 #12-08,Juan Rodríguez,3109876543\n"
-        "7.25,La Flora,Avenida 80 #45-30,María López,3215554433\n"
-        "12.00,La Castilla,Transversal 22 #5-14,Pedro Gómez,3009988776\n"
+        "2.50,Miraflores,Av. Jose Larco 400,Ana Garcia,\n"
+        "18.00,San Isidro,Av. Javier Prado Oeste 500,Juan Rodriguez,\n"
+        "7.25,Surco,Av. Benavides 3500,Maria Lopez,\n"
+        "12.00,Barranco,Av. Grau 200,Pedro Gomez,\n"
+        "3.00,Surquillo,Av. Angamos Este 800,Lucia Perez,\n"
+        "4.50,San Borja,Av. San Borja Norte 600,Carlos Torres,\n"
+        "6.00,Lince,Av. Arequipa 2000,Rosa Diaz,\n"
+        "8.00,Jesus Maria,Av. Brasil 1200,Luis Ramos,\n"
+        "10.00,Los Olivos,Av. Antunez de Mayolo 1000,Elena Ruiz,\n"
+        "5.50,Independencia,Av. Tupac Amaru 300,Pablo Castro,\n"
     )

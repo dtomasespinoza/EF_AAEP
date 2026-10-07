@@ -8,7 +8,7 @@ import tempfile
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from .costos import TARIFAS_INICIALES
+from .costos import TARIFAS_INICIALES, normalizar
 from .modelos import EstadoPedido, Pedido, Salida
 
 VERSION_ARCHIVO = 1
@@ -51,6 +51,7 @@ class Repositorio:
         self.tarifas = dict(datos.get("tarifas", TARIFAS_INICIALES))
         for pedido in self.pedidos.values():
             pedido.tarifas = self.tarifas
+            self.asegurar_distrito(pedido.distrito_efectivo)
         self.salidas = [
             Salida.desde_dict(registro, indice + 1)
             for indice, registro in enumerate(datos.get("salidas", []))
@@ -73,6 +74,8 @@ class Repositorio:
 
     def guardar(self) -> None:
         """Persiste el estado completo de forma atomica."""
+        for pedido in self.pedidos.values():
+            self.asegurar_distrito(pedido.distrito_efectivo)
         self.ruta.parent.mkdir(parents=True, exist_ok=True)
 
         datos = {
@@ -126,8 +129,19 @@ class Repositorio:
         self.contador += 1
         return codigo
 
+    def asegurar_distrito(self, distrito: str) -> None:
+        """Agrega distritos nuevos sin precio; evita duplicados por acentos."""
+        nombre = " ".join((distrito or "").split())
+        if not nombre:
+            return
+        if normalizar(nombre) == "santiago de surco":
+            nombre = "Surco"
+        if not any(normalizar(d) == normalizar(nombre) for d in self.tarifas):
+            self.tarifas[nombre] = None
+
     def agregar(self, pedido: Pedido) -> Pedido:
         pedido.tarifas = self.tarifas
+        self.asegurar_distrito(pedido.distrito_efectivo)
         self.pedidos[pedido.codigo] = pedido
         return pedido
 

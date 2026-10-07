@@ -369,3 +369,5 @@ curl -s https://<TU_USUARIO>.pythonanywhere.com/api/estadisticas
 ## Costos de envio
 
 Lista de precios editable en /tarifas, con 10 distritos iniciales. Se pueden actualizar tarifas o agregar distritos desde la interfaz. No se calcula lejania. Costo = peso × precio por kg, redondeado a dos decimales. Los precios se guardan en el mismo JSON que los pedidos y sobreviven al reinicio. Las modificaciones recalculan las cotizaciones de pedidos; las salidas confirmadas conservan su precio historico. Distritos sin tarifa: por cotizar.
+
+En creacion y edicion el distrito permite elegir o escribir. Los nuevos distritos (incluidos importacion y edicion masiva) se agregan automaticamente sin precio; aparecen como Por cotizar hasta asignar tarifa en /tarifas. El CSV descargable, compatible con Excel, incluye ejemplos ficticios con distritos y avenidas de Lima y texto sin tildes.

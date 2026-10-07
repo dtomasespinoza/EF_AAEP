@@ -79,6 +79,9 @@ class Api {
         throw new Error(datos.mensaje || "Ocurrio un error inesperado.");
       }
 
+      if (metodo !== 'GET' && (ruta.startsWith('/api/pedidos') || ruta.startsWith('/api/carga/confirmar') || ruta.startsWith('/api/tarifas'))) {
+        document.dispatchEvent(new Event('distritos-actualizados'));
+      }
       return datos.datos;
     } catch (error) {
       if (error.name === "TypeError") {
@@ -369,3 +372,21 @@ function tablaPedidos(contenedor, pedidos, acciones = null) {
     texto: 'No hay pedidos para mostrar.'
   }));
 }
+
+// Un datalist permite seleccionar un distrito existente o escribir uno nuevo.
+async function cargarDistritos() {
+  if (!document.querySelector('[data-distrito]')) return;
+  let lista = document.getElementById('distrito-opciones');
+  if (!lista) {
+    lista = elemento('datalist', {id: 'distrito-opciones'});
+    document.body.append(lista);
+  }
+  const datos = await Api.enviar('/api/tarifas');
+  vaciar(lista);
+  datos.tarifas.forEach(t => lista.append(elemento('option', {
+    value: t.distrito,
+    label: t.tarifa_kg == null ? 'Por cotizar' : `${soles(t.tarifa_kg)} / kg`
+  })));
+}
+document.addEventListener('distritos-actualizados', () => cargarDistritos().catch(error => avisar(error.message, 'error')));
+cargarDistritos().catch(error => avisar(error.message, 'error'));

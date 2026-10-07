@@ -6,9 +6,18 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from nucleo.importador import importar_archivo
+from nucleo.importador import importar_archivo, plantilla_csv
 
 class PruebaEncabezados(unittest.TestCase):
+    def test_plantilla_lima_sin_tildes(self):
+        texto = plantilla_csv()
+        self.assertTrue(texto.isascii())
+        resultado = importar_archivo("plantilla.csv", texto.encode("ascii"), [f"P{i:03d}" for i in range(1, 11)])
+        self.assertEqual(resultado.total_errores, 0)
+        self.assertEqual(resultado.total_importados, 10)
+        self.assertEqual(resultado.pedidos[0].distrito, "Miraflores")
+        self.assertEqual(resultado.pedidos[-1].distrito, "Independencia")
+
     def test_csv_del_usuario(self):
         contenido = (
             "KILO,DISTRITO,DIRECCION,CLIENTE,NUMERO\n"

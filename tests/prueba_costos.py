@@ -50,3 +50,33 @@ class PruebaCostos(unittest.TestCase):
             self.assertEqual(otro.repositorio.tarifas["Ate"], 5)
             self.assertEqual(otro.historial()[0].a_dict()["costo_total"], 6)
             self.assertEqual(RAPPIDOS(str(Path(carpeta) / "otro.json")).repositorio.tarifas["Surco"], 2)
+
+    def test_distrito_nuevo_pendiente_y_cotizacion_posterior(self):
+        import tempfile
+        from pathlib import Path
+        from nucleo.servicio import RAPPIDOS
+        with tempfile.TemporaryDirectory(dir=Path.cwd()) as carpeta:
+            ruta = str(Path(carpeta) / "datos.json")
+            servicio = RAPPIDOS(ruta)
+            uno = servicio.registrar(2, distrito="Ate").datos
+            dos = servicio.registrar(3, distrito=" ATE ").datos
+            self.assertIn("Ate", servicio.repositorio.tarifas)
+            self.assertEqual(len(servicio.repositorio.tarifas), 11)
+            self.assertIsNone(uno.a_dict()["costo_envio"])
+            self.assertIsNone(dos.a_dict()["costo_envio"])
+            recargado = RAPPIDOS(ruta)
+            self.assertIsNone(recargado.repositorio.tarifas["Ate"])
+            self.assertTrue(servicio.guardar_tarifa("ate", 5).ok)
+            self.assertEqual(uno.a_dict()["costo_envio"], 10)
+            self.assertEqual(dos.a_dict()["costo_envio"], 15)
+            servicio.editar(uno.codigo, distrito="Chaclacayo")
+            self.assertIsNone(servicio.repositorio.tarifas["Chaclacayo"])
+            self.assertIsNone(uno.a_dict()["costo_envio"])
+            servicio.editar_masivo([uno.codigo, dos.codigo], distrito="Lurin")
+            self.assertIsNone(servicio.repositorio.tarifas["Lurin"])
+            vista = servicio.importar("pedidos.csv", b"Peso,Distrito\n1.5,Comas\n").datos
+            self.assertNotIn("Comas", servicio.repositorio.tarifas)
+            servicio.confirmar_importacion(vista)
+            self.assertIsNone(servicio.repositorio.tarifas["Comas"])
+            self.assertTrue(servicio.guardar_tarifa("Comas", 4).ok)
+            self.assertEqual(vista.pedidos[0].a_dict()["costo_envio"], 6)

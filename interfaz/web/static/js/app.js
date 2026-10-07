@@ -332,6 +332,10 @@ function llenarSelect(select, opciones, valorInicial) {
   return select;
 }
 
+function soles(valor) {
+  return valor == null ? 'Por cotizar' : `S/ ${Number(valor).toFixed(2)}`;
+}
+
 function tablaPedidos(contenedor, pedidos, acciones = null) {
   vaciar(contenedor);
   const caja = elemento('div', {
@@ -339,7 +343,7 @@ function tablaPedidos(contenedor, pedidos, acciones = null) {
     }),
     tabla = elemento('table');
   const encabezado = elemento('tr');
-  ['Código', 'Peso', 'Distrito', 'Dirección', 'Cliente', 'Teléfono', 'Estado', ...(acciones ? ['Acciones'] : [])].forEach(t => encabezado.append(elemento('th', {
+  ['Código', 'Peso', 'Distrito', 'Tarifa / kg', 'Costo de envío', 'Dirección', 'Cliente', 'Teléfono', 'Estado', ...(acciones ? ['Acciones'] : [])].forEach(t => encabezado.append(elemento('th', {
     texto: t
   })));
   const head = elemento('thead');
@@ -348,7 +352,7 @@ function tablaPedidos(contenedor, pedidos, acciones = null) {
   const body = elemento('tbody');
   pedidos.forEach(p => {
     const fila = elemento('tr');
-    [p.codigo, peso(p.peso), p.distrito || '—', p.direccion || '—', p.cliente || '—', p.telefono || '—', p.estado || '—'].forEach(t => fila.append(elemento('td', {
+    [p.codigo, peso(p.peso), p.distrito || '—', soles(p.tarifa_kg), soles(p.costo_envio), p.direccion || '—', p.cliente || '—', p.telefono || '—', p.estado || '—'].forEach(t => fila.append(elemento('td', {
       texto: t
     })));
     if (acciones) {

@@ -13,6 +13,7 @@ Consulta, ordena y edita pedidos individuales o selecciona varios para corregirl
 {% endblock %}
 
 {% block contenido %}
+<p>Costo de envío = peso × tarifa del distrito. <a href="{{ url_for('pagina_tarifas') }}">Editar lista de precios</a>. Distritos sin tarifa: por cotizar.</p>
 <div class="tarjeta mb-2">
 <div class="rejilla rejilla-3">
 <div class="campo">

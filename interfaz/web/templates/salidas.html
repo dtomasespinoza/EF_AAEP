@@ -78,14 +78,14 @@ async function planear() {
     const config = opciones();
     const p = await Api.enviar('/api/salidas/plan', 'POST', config);
     configuracion = config;
-    $('#resumen').textContent = `${p.cantidad_viajes} mochilas · ${p.total_pedidos} pedidos · ${peso(p.peso_total)}`;
+    $('#resumen').textContent = `${p.cantidad_viajes} mochilas · ${p.total_pedidos} pedidos · ${peso(p.peso_total)} · Costo: ${soles(p.costo_total)}`;
     p.viajes.forEach(v => {
       const c = elemento('details', {
         clase: 'grupo-mochila',
         open: true
       });
       c.append(elemento('summary', {
-        texto: `Mochila / viaje ${v.numero} · ${v.pedidos[0]?.distrito || "Sin distrito"}: ${v.cantidad} pedidos · ${peso(v.peso_total)} / ${peso(v.capacidad)} · Libre: ${peso(v.disponible)}`
+        texto: `Mochila / viaje ${v.numero} · ${v.pedidos[0]?.distrito || "Sin distrito"}: ${v.cantidad} pedidos · ${peso(v.peso_total)} / ${peso(v.capacidad)} · Libre: ${peso(v.disponible)} · Costo: ${soles(v.costo_total)}`
       }));
       const t = elemento('div');
       tablaPedidos(t, v.pedidos);
@@ -143,7 +143,7 @@ async function historial() {
         clase: 'plan-item'
       });
       fila.append(elemento('span', {
-        texto: `#${s.id} · ${s.fecha} · ${s.viajes||1} viajes · ${s.cantidad} pedidos · ${peso(s.peso_total)}`
+        texto: `#${s.id} · ${s.fecha} · ${s.viajes||1} viajes · ${s.cantidad} pedidos · ${peso(s.peso_total)} · Costo: ${soles(s.costo_total)}`
       }));
       const b = elemento('button', {
         clase: 'boton boton--pequeno',

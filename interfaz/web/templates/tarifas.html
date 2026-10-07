@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block titulo %}Tarifas por distrito{% endblock %}
+{% block encabezado %}Tarifas por distrito{% endblock %}
+{% block descripcion %}Lista de precios en soles por kilogramo. Edita un precio o agrega otro distrito.{% endblock %}
+{% block contenido %}
+<div class="tarjeta mb-2">
+<p>Costo de envío = peso × precio por kg. Los cambios se aplican a las cotizaciones; las salidas confirmadas conservan su precio.</p>
+<form id="form-tarifa" class="rejilla rejilla-3">
+<div class="campo"><label for="tarifa-distrito">Distrito</label><input id="tarifa-distrito" required type="text"></div>
+<div class="campo"><label for="tarifa-precio">Precio por kg (S/)</label><input id="tarifa-precio" required type="number" min="0.01" step="0.01"></div>
+<div class="campo"><button class="boton" type="submit" id="guardar-tarifa">Guardar tarifa</button></div>
+</form>
+</div>
+<div class="tarjeta" id="lista-tarifas"></div>
+{% endblock %}
+{% block scripts %}
+<script>
+async function mostrarTarifas() {
+  const datos = await Api.enviar('/api/tarifas');
+  const contenedor = $('#lista-tarifas');
+  vaciar(contenedor);
+  const tabla = elemento('table');
+  const head = elemento('thead'), encabezado = elemento('tr');
+  ['Distrito', 'Precio por kg', 'Acciones'].forEach(t => encabezado.append(elemento('th', {texto: t})));
+  head.append(encabezado); tabla.append(head);
+  const body = elemento('tbody');
+  datos.tarifas.forEach(t => {
+    const fila = elemento('tr');
+    fila.append(elemento('td', {texto: t.distrito}), elemento('td', {texto: soles(t.tarifa_kg)}));
+    const celda = elemento('td'), boton = elemento('button', {texto: 'Editar', clase: 'boton', type: 'button'});
+    boton.addEventListener('click', () => {
+      $('#tarifa-distrito').value = t.distrito;
+      $('#tarifa-precio').value = t.tarifa_kg;
+      $('#tarifa-precio').focus();
+    });
+    celda.append(boton); fila.append(celda); body.append(fila);
+  });
+  tabla.append(body); contenedor.append(tabla);
+}
+$('#form-tarifa').addEventListener('submit', async e => {
+  e.preventDefault();
+  const boton = $('#guardar-tarifa'); boton.disabled = true;
+  try {
+    await Api.enviar('/api/tarifas', 'POST', {distrito: $('#tarifa-distrito').value, tarifa_kg: $('#tarifa-precio').value});
+    avisar('Tarifa guardada.', 'exito');
+    e.target.reset();
+    await mostrarTarifas();
+  } catch (error) { avisar(error.message, 'error'); }
+  finally { boton.disabled = false; }
+});
+mostrarTarifas().catch(error => avisar(error.message, 'error'));
+</script>
+{% endblock %}

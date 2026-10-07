@@ -137,6 +137,21 @@ def pagina_estadisticas():
     """Metricas del sistema y graficas."""
     return render_template("estadisticas.html", activo="estadisticas", capacidad=CAPACIDAD_VEHICULO_KG)
 
+@app.route("/tarifas")
+def pagina_tarifas():
+    return render_template("tarifas.html", activo="tarifas", capacidad=CAPACIDAD_VEHICULO_KG)
+
+@app.route("/api/tarifas", methods=["GET", "POST"])
+def api_tarifas():
+    if request.method == "POST":
+        resultado = servicio.guardar_tarifa(_texto("distrito"), _dato("tarifa_kg"))
+        if not resultado.ok:
+            return _error(resultado.mensaje)
+    return _json({"tarifas": [
+        {"distrito": distrito, "tarifa_kg": tarifa}
+        for distrito, tarifa in sorted(servicio.repositorio.tarifas.items())
+    ]})
+
 @app.route("/api/pedidos", methods=["GET"])
 def api_listar():
     """Lista pedidos con filtros de peso y distrito, y orden opcional."""

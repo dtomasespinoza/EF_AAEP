@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import math
+from .costos import normalizar
 from typing import Any, Dict, List, Optional, Sequence
 
 from .algoritmos import (
@@ -40,6 +41,31 @@ class RAPPIDOS:
 
     def __init__(self, ruta_datos: Optional[str] = None) -> None:
         self.repositorio = Repositorio(ruta_datos)
+
+    def guardar_tarifa(self, distrito: str, tarifa: Any) -> ResultadoOperacion:
+        nombre = " ".join(str(distrito or "").split())
+        if not nombre:
+            return ResultadoOperacion.error("Ingrese un distrito.")
+        if normalizar(nombre) == "santiago de surco":
+            nombre = "Surco"
+        try:
+            from decimal import Decimal, InvalidOperation
+            valor = Decimal(str(tarifa).replace(",", "."))
+            if not valor.is_finite() or valor <= 0 or valor != valor.quantize(Decimal("0.01")):
+                return ResultadoOperacion.error("La tarifa debe ser positiva y tener como maximo dos decimales.")
+        except (InvalidOperation, ValueError, TypeError):
+            return ResultadoOperacion.error("Ingrese una tarifa valida en soles por kg.")
+        tarifas = self.repositorio.tarifas
+        clave = next((d for d in tarifas if normalizar(d) == normalizar(nombre)), nombre)
+        anterior = dict(tarifas)
+        tarifas[clave] = float(valor)
+        try:
+            self.repositorio.guardar()
+        except OSError:
+            tarifas.clear()
+            tarifas.update(anterior)
+            return ResultadoOperacion.error("No se pudo guardar la tarifa. Intente nuevamente.")
+        return ResultadoOperacion.exito("Tarifa guardada.")
 
     def registrar(
         self,
@@ -226,6 +252,9 @@ class RAPPIDOS:
         resultado: ResultadoImportacion = importar_archivo(
             nombre_archivo, contenido, codigos
         )
+
+        for pedido in resultado.pedidos:
+            pedido.tarifas = self.repositorio.tarifas
 
         if not resultado.pedidos:
             detalle = resultado.errores[0].mensaje if resultado.errores else "sin datos validos"
@@ -487,6 +516,7 @@ class RAPPIDOS:
                 codigos.append(pedido.codigo)
                 detalle.append(
                     {
+                        **{k: pedido.a_dict()[k] for k in ("tarifa_kg", "costo_envio")},
                         "codigo": pedido.codigo,
                         "peso": pedido.peso,
                         "distrito": pedido.distrito_efectivo,
@@ -550,6 +580,7 @@ class RAPPIDOS:
             codigos.append(pedido.codigo)
             detalle.append(
                 {
+                    **{k: pedido.a_dict()[k] for k in ("tarifa_kg", "costo_envio")},
                     "codigo": pedido.codigo,
                     "peso": pedido.peso,
                     "distrito": pedido.distrito_efectivo,

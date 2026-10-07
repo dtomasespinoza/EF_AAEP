@@ -8,6 +8,8 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple
 from .algoritmos import Cronometro, ordenar
 from .modelos import CAPACIDAD_VEHICULO_KG, EstrategiaOrden, EstrategiaReparto, Pedido
 
+from .costos import resumir_costos
+
 MAX_PEDIDOS_MOCHILA = 800
 
 ESCALA = 100
@@ -66,6 +68,7 @@ class Viaje:
 
     def a_dict(self) -> Dict[str, Any]:
         return {
+            **resumir_costos([p.a_dict() for p in self.pedidos]),
             "numero": self.numero,
             "cantidad": self.cantidad,
             "peso_total": round(self.peso_total, 2),
@@ -116,6 +119,7 @@ class PlanCarga:
 
     def a_dict(self) -> Dict[str, Any]:
         return {
+            **resumir_costos([p.a_dict() for v in self.viajes for p in v.pedidos]),
             "viajes": [viaje.a_dict() for viaje in self.viajes],
             "estrategia": self.estrategia.value if self.estrategia else "",
             "estrategia_etiqueta": self.estrategia.etiqueta if self.estrategia else "",
@@ -160,6 +164,7 @@ class PlanSalida:
 
     def a_dict(self) -> Dict[str, Any]:
         return {
+            **resumir_costos([p.a_dict() for p in self.seleccionados]),
             "estrategia": self.estrategia.value,
             "estrategia_etiqueta": self.estrategia.etiqueta,
             "capacidad": self.capacidad,

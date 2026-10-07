@@ -47,6 +47,8 @@
         Preparar salida
       </a>
 
+      <a href="{{ url_for('pagina_tarifas') }}" class="nav__enlace {{ 'activo' if activo == 'tarifas' }}">Tarifas por distrito</a>
+
       <div class="nav__seccion">Análisis</div><a href="{{ url_for('pagina_analisis') }}" class="nav__enlace {{ 'activo' if activo == 'analisis' }}">Comparación y Búsqueda</a>
 
       <a href="{{ url_for('pagina_estadisticas') }}"

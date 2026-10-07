@@ -8,6 +8,7 @@ import tempfile
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from .costos import TARIFAS_INICIALES
 from .modelos import EstadoPedido, Pedido, Salida
 
 VERSION_ARCHIVO = 1
@@ -26,6 +27,7 @@ class Repositorio:
         self.pedidos: Dict[str, Pedido] = {}
         self.salidas: List[Salida] = []
         self.contador = 1
+        self.tarifas = dict(TARIFAS_INICIALES)
         self._cargar()
 
     def _cargar(self) -> None:
@@ -46,6 +48,9 @@ class Repositorio:
             codigo: Pedido.desde_dict(valores)
             for codigo, valores in datos.get("pedidos", {}).items()
         }
+        self.tarifas = dict(datos.get("tarifas", TARIFAS_INICIALES))
+        for pedido in self.pedidos.values():
+            pedido.tarifas = self.tarifas
         self.salidas = [
             Salida.desde_dict(registro, indice + 1)
             for indice, registro in enumerate(datos.get("salidas", []))
@@ -72,6 +77,7 @@ class Repositorio:
 
         datos = {
             "version": VERSION_ARCHIVO,
+            "tarifas": self.tarifas,
             "contador": self.contador,
             "pedidos": {codigo: pedido.a_dict() for codigo, pedido in self.pedidos.items()},
 
@@ -121,6 +127,7 @@ class Repositorio:
         return codigo
 
     def agregar(self, pedido: Pedido) -> Pedido:
+        pedido.tarifas = self.tarifas
         self.pedidos[pedido.codigo] = pedido
         return pedido
 

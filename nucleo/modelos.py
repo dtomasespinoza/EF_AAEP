@@ -7,6 +7,8 @@ from datetime import datetime
 from enum import Enum
 from typing import Any, Dict, List, Optional
 
+from .costos import cotizar, resumir_costos
+
 PESO_MINIMO_KG = 0.1
 PESO_MAXIMO_KG = 30.0
 CAPACIDAD_VEHICULO_KG = 30.0
@@ -115,6 +117,8 @@ class Pedido:
     fecha_registro: str = ""
     fecha_despacho: str = ""
 
+    tarifas: Optional[Dict[str, float]] = field(default=None, repr=False, compare=False)
+
     @property
     def peso_centavos(self) -> int:
         """Peso expresado en centesimas de kilogramo (entero exacto)."""
@@ -126,8 +130,10 @@ class Pedido:
 
     def a_dict(self) -> Dict[str, Any]:
         datos = asdict(self)
+        datos.pop("tarifas", None)
         datos["estado"] = self.estado.value
         datos["pendiente"] = self.pendiente
+        datos.update(cotizar(self.peso, self.distrito_efectivo, self.tarifas))
         return datos
 
     @classmethod
@@ -180,6 +186,7 @@ class Salida:
 
     def a_dict(self) -> Dict[str, Any]:
         return {
+            **resumir_costos(self.detalle),
             "id": self.id,
             "codigos": list(self.codigos),
             "peso_total": self.peso_total,
